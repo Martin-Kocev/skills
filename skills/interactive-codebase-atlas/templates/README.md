@@ -52,6 +52,8 @@ Explain the authentication flow using the Codebase Atlas, at balanced technical 
 
 ## Reading it
 
+Two ordered routes, answering different questions. **The full tour (`#/tour`)** walks every section of the atlas in a sensible order — what the pieces are, how they talk, what they store, what they do end to end. **Reading order (`#/reading-order`)** is a dependency graph of the actual files: an arrow means *this file assumes you have read that one*, each node says what to look for and how to check you got it, and you mark them read on the graph itself. Nothing is ever locked; an unmet prerequisite is a hint. Those completions are counted separately from atlas sections, because "files read" and "sections understood" are different measures.
+
 - **Depth** — Simple, Balanced, or Deep dive, switchable at any time from the top bar. Balanced is the default.
 - **Focus mode** — press `f` (or use the button) to hide secondary navigation and optional detail. `Escape` exits.
 - **Keyboard** — Tab reaches everything. Arrow keys move between architecture nodes and workflow steps.

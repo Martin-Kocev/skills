@@ -17,7 +17,7 @@
     "generatedAt": "2026-07-31T09:20:11+02:00",
     "workingTreeClean": true,
     "dirtyFiles": [],
-    "lastValidatedAt": "2026-08-04T10:18:02.568Z",
+    "lastValidatedAt": "2026-08-13T19:46:32.294Z",
     "atlasLocation": "sibling",
     "gitExcludeApplied": false,
     "commitsBehind": 0
@@ -65,6 +65,21 @@
         "section-delivery"
       ],
       "contentHash": "473e172f9112cdb4"
+    },
+    {
+      "id": "path-reading-order",
+      "kind": "reading-order",
+      "title": "Read the code in order",
+      "blurb": "A dependency graph of the files worth reading, arranged so each one is explained by the ones before it.",
+      "stepIds": [
+        "read-readme",
+        "read-overlap-migration",
+        "read-reservations-repo",
+        "read-booking-form",
+        "read-use-reservation",
+        "read-availability"
+      ],
+      "contentHash": "c8d5b174c964e988"
     },
     {
       "id": "path-follow-action",
@@ -1751,5 +1766,162 @@
       "whereToLook": "The operations team, or the original booking-flow design discussion.",
       "contentHash": "2119fe1308955dbc"
     }
-  ]
+  ],
+  "readingOrder": {
+    "id": "section-reading-order",
+    "hook": "Six files, in the order that makes each one explain the next. Nothing here is locked — an arrow says what a file assumes you already know, not what you are allowed to open.",
+    "goal": "Read the reservation path once, in an order where every file is explained by the ones before it, and finish able to say which layer actually prevents a double booking.",
+    "stages": [
+      {
+        "id": "stage-orient",
+        "name": "Get your bearings",
+        "what": "What this is and how to run it, before any code."
+      },
+      {
+        "id": "stage-shapes",
+        "name": "The shapes everything refers to",
+        "what": "The schema and the one constraint the rest of the system is downstream of."
+      },
+      {
+        "id": "stage-path",
+        "name": "One reservation, end to end",
+        "what": "The request path, in the order it executes."
+      },
+      {
+        "id": "stage-operations",
+        "name": "Keeping it running",
+        "what": "What only matters once something has already gone wrong."
+      }
+    ],
+    "nodes": [
+      {
+        "id": "read-readme",
+        "stage": "stage-orient",
+        "title": "README.md",
+        "path": "README.md",
+        "what": "What the product is, how to run it, and what each environment variable is for.",
+        "lookFor": "The availability model described in prose — you will meet it again as a database constraint.",
+        "validate": "Bring the stack up and make one reservation by hand. Everything below has a running system behind it.",
+        "dependsOn": [],
+        "sources": [
+          {
+            "path": "README.md",
+            "kind": "doc"
+          }
+        ],
+        "confidence": "verified",
+        "contentHash": "6fb116dd1d1e4f11"
+      },
+      {
+        "id": "read-overlap-migration",
+        "stage": "stage-shapes",
+        "title": "0007_reservation_overlap.sql",
+        "path": "migrations/0007_reservation_overlap.sql",
+        "what": "The exclusion constraint that makes two overlapping confirmed reservations unrepresentable.",
+        "lookFor": "That the guarantee is here, in the schema — not in the service that produces the friendly 409.",
+        "validate": "Insert two overlapping rows directly in psql. The database should refuse before any application code runs.",
+        "dependsOn": [
+          "read-readme"
+        ],
+        "fileId": "file-overlap-migration",
+        "componentId": "component-db",
+        "sources": [
+          {
+            "path": "migrations/0007_reservation_overlap.sql",
+            "kind": "migration"
+          }
+        ],
+        "confidence": "verified",
+        "contentHash": "06e712c8d084f9a9"
+      },
+      {
+        "id": "read-reservations-repo",
+        "stage": "stage-shapes",
+        "title": "db/reservations.ts",
+        "path": "services/api/src/db/reservations.ts",
+        "what": "Every read and write of a reservation, and the only place the audit row is guaranteed alongside it.",
+        "lookFor": "That the constraint violation is caught here and translated, rather than being prevented here.",
+        "validate": "Find the error code it maps to a 409, and check it against the constraint name in the migration.",
+        "dependsOn": [
+          "read-overlap-migration"
+        ],
+        "fileId": "file-reservations-repo",
+        "componentId": "component-api",
+        "sources": [
+          {
+            "path": "services/api/src/db/reservations.ts",
+            "kind": "code"
+          }
+        ],
+        "confidence": "verified",
+        "contentHash": "fae97745e321a8eb"
+      },
+      {
+        "id": "read-booking-form",
+        "stage": "stage-path",
+        "title": "BookingForm.tsx",
+        "path": "apps/web/app/book/BookingForm.tsx",
+        "what": "Where a tap becomes a request, and where a double submission is stopped.",
+        "lookFor": "The pending guard before the POST. It prevents one guest racing themselves, not two guests racing each other.",
+        "validate": "test/e2e/booking.spec.ts — the \"double submit\" case is the one to read.",
+        "dependsOn": [
+          "read-readme"
+        ],
+        "fileId": "file-booking-form",
+        "componentId": "component-web",
+        "sources": [
+          {
+            "path": "apps/web/app/book/BookingForm.tsx",
+            "kind": "code"
+          }
+        ],
+        "confidence": "verified",
+        "contentHash": "443c06b37e5cab77"
+      },
+      {
+        "id": "read-use-reservation",
+        "stage": "stage-path",
+        "title": "useReservation.ts",
+        "path": "apps/web/app/book/useReservation.ts",
+        "what": "The optimistic update, and what it does when the server disagrees.",
+        "lookFor": "How a 409 is distinguished from a network failure — they look identical to a naive catch and mean opposite things.",
+        "validate": "Take the API down and then make the API return 409. The two should not produce the same message.",
+        "dependsOn": [
+          "read-booking-form",
+          "read-reservations-repo"
+        ],
+        "fileId": "file-use-reservation",
+        "componentId": "component-web",
+        "sources": [
+          {
+            "path": "apps/web/app/book/useReservation.ts",
+            "kind": "code"
+          }
+        ],
+        "confidence": "verified",
+        "contentHash": "3af25b90530ef848"
+      },
+      {
+        "id": "read-availability",
+        "stage": "stage-operations",
+        "title": "availability/index.ts",
+        "path": "services/api/src/availability/index.ts",
+        "what": "The slot grid the booking UI renders, computed rather than stored.",
+        "lookFor": "Why it is recomputed rather than cached: a stale grid shows a slot that the constraint will then refuse.",
+        "validate": "Move the clock across a DST boundary and check the slot edges.",
+        "dependsOn": [
+          "read-reservations-repo"
+        ],
+        "componentId": "component-availability",
+        "sources": [
+          {
+            "path": "services/api/src/availability/index.ts",
+            "kind": "code"
+          }
+        ],
+        "confidence": "inferred",
+        "contentHash": "c0786cc6c85ce29f"
+      }
+    ]
+  }
 }

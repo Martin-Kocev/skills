@@ -8,11 +8,11 @@ A collection of portable, composable Agent Skills for codebase exploration, disc
 
 | Skill | What it does | Install |
 |---|---|---|
-| [interactive-codebase-atlas](skills/interactive-codebase-atlas/) | Builds an evidence-backed, browser-based map of a codebase in a separate, untracked sibling directory. | `npx skills@latest add Martin-Kocev/skills --skill interactive-codebase-atlas` |
-| [gitflow-feature-workflow](skills/gitflow-feature-workflow/) | Runs features, hotfixes, and releases through strict Gitflow branches and verification gates. | `npx skills@latest add Martin-Kocev/skills --skill gitflow-feature-workflow` |
-| [orchestrator](skills/orchestrator/) | Coordinates separable work across specialized subagents and independently verifies the integrated result. | `npx skills@latest add Martin-Kocev/skills --skill orchestrator` |
+| [interactive-codebase-atlas](skills/interactive-codebase-atlas/) | Builds an evidence-backed, browser-based map of a codebase, including a file-by-file Reading Order, in a separate, untracked sibling directory. | `npx skills@latest add Martin-Kocev/skills --skill interactive-codebase-atlas` |
+| [gitflow-feature-workflow](skills/gitflow-feature-workflow/) | Runs features, hotfixes, and releases through strict `main`/`dev` Gitflow with a written plan, test-first development, branches announced to the team on start, and an Obsidian-friendly project wiki. | `npx skills@latest add Martin-Kocev/skills --skill gitflow-feature-workflow` |
+| [orchestrator](skills/orchestrator/) | Explicitly invoked coordination of separable work across Claude and Codex subagents under a chosen model and concurrency cap, followed by independent verification. | `npx skills@latest add Martin-Kocev/skills --skill orchestrator` |
 
-Each skill is self-contained and can be installed independently. `interactive-codebase-atlas` is explicitly invoked and never adds a generated atlas to the repository being studied.
+Each skill is self-contained and can be installed independently. `interactive-codebase-atlas` and `orchestrator` are explicit-invocation-only skills; neither is selected automatically. The atlas never adds generated output to the repository being studied.
 
 ## Install
 
@@ -56,6 +56,10 @@ Use $gitflow-feature-workflow to implement this change through the correct Gitfl
 Use $orchestrator to coordinate this work across specialized subagents and verify the result.
 ```
 
+The orchestrator runs only when invoked as `/orchestrator` (Claude Code) or `$orchestrator` (Codex); task complexity or the presence of separable work does not activate it automatically. It asks for a subagent model and a concurrency cap before dispatching, unless they are given inline (for example `/orchestrator model=sonnet max=3 <task>`).
+
+The Gitflow workflow keeps a plan in `.gitflow/plan.md` (excluded locally) and a project wiki in `docs/wiki/`. It pushes each new branch with an empty start commit describing the planned change, keeps commits local while building, and pushes again when the branch is finished; it lints the wiki with `python scripts/wiki_lint.py docs/wiki` on release branches.
+
 The atlas defaults to `../<repo-name>-codebase-atlas/`. Generated atlas files are output artifacts, not part of the repository being analyzed.
 
 ## Repository layout
@@ -75,7 +79,8 @@ skills/
 │   └── scripts/
 └── orchestrator/
     ├── SKILL.md
-    └── agents/openai.yaml
+    ├── agents/openai.yaml
+    └── references/
 ```
 
 Each folder is self-contained. The `skills` CLI discovers valid `SKILL.md` files recursively and presents each skill as a separate installable entry.

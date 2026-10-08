@@ -4,42 +4,187 @@
   "title": "Codebase Atlas data",
   "description": "Repository-derived content for an interactive Codebase Atlas. Presentation code reads this file and adds nothing to it. Prose guidance lives in references/schema.md.",
   "type": "object",
-  "required": ["atlasSchemaVersion", "skillVersion", "repository", "meta", "learningPaths"],
+  "required": [
+    "atlasSchemaVersion",
+    "skillVersion",
+    "repository",
+    "meta",
+    "learningPaths"
+  ],
   "properties": {
-    "atlasSchemaVersion": { "type": "string" },
-    "skillVersion": { "type": "string" },
-    "repository": { "$ref": "#/$defs/repository" },
-    "updateHistory": { "type": "array", "items": { "$ref": "#/$defs/update" } },
-    "meta": { "$ref": "#/$defs/meta" },
-    "learningPaths": { "type": "array", "items": { "$ref": "#/$defs/learningPath" } },
-    "components": { "type": "array", "items": { "$ref": "#/$defs/component" } },
-    "connections": { "type": "array", "items": { "$ref": "#/$defs/connection" } },
-    "workflows": { "type": "array", "items": { "$ref": "#/$defs/workflow" } },
-    "entities": { "type": "array", "items": { "$ref": "#/$defs/entity" } },
-    "channels": { "type": "array", "items": { "type": "object" } },
-    "auth": { "type": ["object", "null"] },
-    "subsystems": { "type": "array", "items": { "type": "object" } },
-    "delivery": { "type": ["object", "null"] },
-    "changePlaybooks": { "type": "array", "items": { "type": "object" } },
-    "glossary": { "type": "array", "items": { "$ref": "#/$defs/term" } },
-    "knowledgeChecks": { "type": "array", "items": { "$ref": "#/$defs/check" } },
+    "atlasSchemaVersion": {
+      "type": "string"
+    },
+    "skillVersion": {
+      "type": "string"
+    },
+    "repository": {
+      "$ref": "#/$defs/repository"
+    },
+    "updateHistory": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/update"
+      }
+    },
+    "meta": {
+      "$ref": "#/$defs/meta"
+    },
+    "learningPaths": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/learningPath"
+      }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/component"
+      }
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/connection"
+      }
+    },
+    "workflows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/workflow"
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entity"
+      }
+    },
+    "channels": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "auth": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "subsystems": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "delivery": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "changePlaybooks": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "glossary": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/term"
+      }
+    },
+    "knowledgeChecks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/check"
+      }
+    },
     "explorer": {
       "type": "object",
       "description": "The levels below a top-level island: island → area/district → file/building. Conceptual groups are the landing view; the real folder tree is a toggle.",
       "properties": {
-        "groups": { "type": "array", "items": { "$ref": "#/$defs/explorerGroup" } },
-        "files": { "type": "array", "items": { "$ref": "#/$defs/explorerFile" } },
+        "groups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/explorerGroup"
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/explorerFile"
+          }
+        },
         "views": {
           "type": "array",
-          "items": { "enum": ["conceptual", "folders", "recently-changed", "current-workflow", "feature", "unexplored"] }
+          "items": {
+            "enum": [
+              "conceptual",
+              "folders",
+              "recently-changed",
+              "current-workflow",
+              "feature",
+              "unexplored"
+            ]
+          }
         },
-        "tree": { "type": "array", "items": { "type": "object" }, "description": "2–3 levels only." },
-        "recentlyChanged": { "type": "array", "items": { "type": "object" } }
+        "tree": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "description": "2–3 levels only."
+        },
+        "recentlyChanged": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
       }
     },
-    "openQuestions": { "type": "array", "items": { "type": "object" } }
+    "openQuestions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "readingOrder": {
+      "type": "object",
+      "required": [
+        "stages",
+        "nodes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "hook": {
+          "type": "string"
+        },
+        "goal": {
+          "type": "string",
+          "description": "What the reader can do once they have finished the whole graph."
+        },
+        "stages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/readingStage"
+          }
+        },
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/readingNode"
+          }
+        }
+      },
+      "description": "A directed acyclic graph of the files to read, in an order where every file is explained by the ones before it. Each node is progress-tracked and markable complete directly on the graph. Deliberately NOT part of the section-progress denominator: \"files read\" and \"sections understood\" are different measures."
+    }
   },
-
   "$defs": {
     "id": {
       "type": "string",
@@ -47,384 +192,1328 @@
       "description": "Permanent once published. Kind-prefixed, kebab-case, derived from meaning rather than position. Never renumber: reader progress is keyed on this."
     },
     "confidence": {
-      "enum": ["verified", "inferred", "unknown"],
+      "enum": [
+        "verified",
+        "inferred",
+        "unknown"
+      ],
       "description": "verified = stated by a comment, test, doc, commit, or observable behaviour. inferred = a reasonable conclusion from the implementation. unknown = the repository does not say."
     },
     "sourceRef": {
       "type": "object",
-      "required": ["path"],
+      "required": [
+        "path"
+      ],
       "properties": {
-        "path": { "type": "string", "description": "Repository-relative." },
-        "symbol": { "type": "string" },
-        "lines": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
-        "kind": { "enum": ["code", "test", "config", "doc", "migration", "schema", "script", "commit"] },
-        "note": { "type": "string" }
+        "path": {
+          "type": "string",
+          "description": "Repository-relative."
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "kind": {
+          "enum": [
+            "code",
+            "test",
+            "config",
+            "doc",
+            "migration",
+            "schema",
+            "script",
+            "commit"
+          ]
+        },
+        "note": {
+          "type": "string"
+        }
       }
     },
     "depth": {
       "type": "object",
-      "required": ["simple", "balanced", "deep"],
+      "required": [
+        "simple",
+        "balanced",
+        "deep"
+      ],
       "description": "All three are authored; balanced is the default reading level.",
       "properties": {
-        "simple": { "type": "string" },
-        "balanced": { "type": "string" },
-        "deep": { "type": "string" }
+        "simple": {
+          "type": "string"
+        },
+        "balanced": {
+          "type": "string"
+        },
+        "deep": {
+          "type": "string"
+        }
       }
     },
     "why": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["q", "a"],
+        "required": [
+          "q",
+          "a"
+        ],
         "properties": {
-          "q": { "type": "string", "description": "Phrased as the reader would ask it." },
-          "a": { "type": "string" },
-          "confidence": { "$ref": "#/$defs/confidence" },
-          "sources": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } }
+          "q": {
+            "type": "string",
+            "description": "Phrased as the reader would ask it."
+          },
+          "a": {
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/$defs/confidence"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/sourceRef"
+            }
+          }
         }
       }
     },
     "changed": {
       "type": "object",
       "properties": {
-        "state": { "enum": ["new", "updated", "unchanged", "removed"] },
-        "commit": { "type": "string" },
-        "note": { "type": "string" }
+        "state": {
+          "enum": [
+            "new",
+            "updated",
+            "unchanged",
+            "removed"
+          ]
+        },
+        "commit": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
       }
     },
     "conflict": {
       "type": "object",
       "description": "Documentation and implementation disagree. Never resolve this silently.",
       "properties": {
-        "claim": { "type": "string" },
-        "reality": { "type": "string" },
-        "assessment": { "type": "string" },
-        "sources": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } }
+        "claim": {
+          "type": "string"
+        },
+        "reality": {
+          "type": "string"
+        },
+        "assessment": {
+          "type": "string"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        }
       }
     },
-
     "repository": {
       "type": "object",
-      "required": ["name", "path", "commit", "commitShort", "commitSubject", "commitTimestamp",
-                   "generatedAt", "workingTreeClean", "dirtyFiles", "detached", "atlasLocation"],
+      "required": [
+        "name",
+        "path",
+        "commit",
+        "commitShort",
+        "commitSubject",
+        "commitTimestamp",
+        "generatedAt",
+        "workingTreeClean",
+        "dirtyFiles",
+        "detached",
+        "atlasLocation"
+      ],
       "properties": {
-        "name": { "type": "string" },
-        "path": { "type": "string" },
-        "remote": { "type": ["string", "null"], "description": "Host and path only. Never credentials." },
-        "branch": { "type": ["string", "null"] },
-        "tag": { "type": ["string", "null"] },
-        "detached": { "type": "boolean" },
-        "commit": { "type": "string" },
-        "commitShort": { "type": "string" },
-        "commitSubject": { "type": "string" },
-        "commitTimestamp": { "type": ["string", "null"] },
-        "rootCommit": { "type": ["string", "null"], "description": "Identity check: proves an update targets the same repository." },
-        "generatedAt": { "type": "string" },
-        "workingTreeClean": { "type": "boolean" },
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "remote": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Host and path only. Never credentials."
+        },
+        "branch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tag": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "detached": {
+          "type": "boolean"
+        },
+        "commit": {
+          "type": "string"
+        },
+        "commitShort": {
+          "type": "string"
+        },
+        "commitSubject": {
+          "type": "string"
+        },
+        "commitTimestamp": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "rootCommit": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Identity check: proves an update targets the same repository."
+        },
+        "generatedAt": {
+          "type": "string"
+        },
+        "workingTreeClean": {
+          "type": "boolean"
+        },
         "dirtyFiles": {
           "type": "array",
-          "items": { "type": "object", "properties": { "path": { "type": "string" }, "status": { "type": "string" } } }
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            }
+          }
         },
-        "lastValidatedAt": { "type": ["string", "null"] },
-        "atlasLocation": { "enum": ["sibling", "inside-repo", "custom"] },
-        "gitExcludeApplied": { "type": "boolean" },
-        "commitsBehind": { "type": "integer", "description": "Drives the staleness banner. Refreshed by audit and update." }
+        "lastValidatedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "atlasLocation": {
+          "enum": [
+            "sibling",
+            "inside-repo",
+            "custom"
+          ]
+        },
+        "gitExcludeApplied": {
+          "type": "boolean"
+        },
+        "commitsBehind": {
+          "type": "integer",
+          "description": "Drives the staleness banner. Refreshed by audit and update."
+        }
       }
     },
-
     "update": {
       "type": "object",
-      "required": ["commit", "at", "mode", "summary"],
+      "required": [
+        "commit",
+        "at",
+        "mode",
+        "summary"
+      ],
       "properties": {
-        "commit": { "type": "string" },
-        "commitShort": { "type": "string" },
-        "fromCommit": { "type": ["string", "null"] },
-        "at": { "type": "string" },
-        "mode": { "enum": ["create", "update", "migrate", "audit"] },
-        "summary": { "type": "string" },
-        "changedSectionIds": { "type": "array", "items": { "type": "string" } },
-        "removedSectionIds": { "type": "array", "items": { "type": "string" } },
-        "commitsSpanned": { "type": "integer" }
+        "commit": {
+          "type": "string"
+        },
+        "commitShort": {
+          "type": "string"
+        },
+        "fromCommit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "at": {
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "create",
+            "update",
+            "migrate",
+            "audit"
+          ]
+        },
+        "summary": {
+          "type": "string"
+        },
+        "changedSectionIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "removedSectionIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "commitsSpanned": {
+          "type": "integer"
+        }
       }
     },
-
     "meta": {
       "type": "object",
-      "required": ["title", "oneLiner"],
+      "required": [
+        "title",
+        "oneLiner"
+      ],
       "properties": {
-        "title": { "type": "string" },
-        "oneLiner": { "type": "string", "description": "What the system does, in language a non-expert understands." },
-        "hook": { "type": "string", "description": "The first thing a reader sees. True, specific to this repository, and answerable by the atlas." },
-        "primaryLanguages": { "type": "array", "items": { "type": "string" } },
-        "stack": { "type": "array", "items": { "type": "string" } },
-        "sizeSignals": { "type": "object" },
-        "scopeNote": { "type": "string", "description": "What this version deliberately does not cover." }
+        "title": {
+          "type": "string"
+        },
+        "oneLiner": {
+          "type": "string",
+          "description": "What the system does, in language a non-expert understands."
+        },
+        "hook": {
+          "type": "string",
+          "description": "The first thing a reader sees. True, specific to this repository, and answerable by the atlas."
+        },
+        "primaryLanguages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "stack": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sizeSignals": {
+          "type": "object"
+        },
+        "scopeNote": {
+          "type": "string",
+          "description": "What this version deliberately does not cover."
+        }
       }
     },
-
     "learningPath": {
       "type": "object",
-      "required": ["id", "kind", "title", "stepIds"],
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "stepIds"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "kind": { "enum": ["quick-overview", "follow-one-action", "explore", "continue", "what-changed", "review-unfinished"] },
-        "title": { "type": "string" },
-        "blurb": { "type": "string" },
-        "stepIds": { "type": "array", "items": { "type": "string" }, "description": "Step COUNT is shown to the reader — never a time estimate." },
-
-        "summary": { "type": "string", "description": "what-changed only: the concept that moved, in one sentence." },
-        "why": { "type": "string", "description": "what-changed only: the evidenced reason. Omit rather than guess." },
-        "commits": { "type": "array", "items": { "type": "string" } },
-        "affectedIds": { "type": "array", "items": { "type": "string" }, "description": "Atlas ids this group touches. Defaults to stepIds when absent." },
-        "files": { "type": "array", "items": { "type": "string" } },
-        "risk": { "enum": ["low", "medium", "high"] },
-        "tests": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } },
-        "documentationImpact": { "type": "string" },
-        "reviewOrder": { "type": "integer", "description": "Recommended review order. Groups without one sort last, then by id." },
-        "sources": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } },
-        "confidence": { "$ref": "#/$defs/confidence" }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "enum": [
+            "quick-overview",
+            "follow-one-action",
+            "explore",
+            "continue",
+            "what-changed",
+            "review-unfinished",
+            "reading-order"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "blurb": {
+          "type": "string"
+        },
+        "stepIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Step COUNT is shown to the reader — never a time estimate."
+        },
+        "summary": {
+          "type": "string",
+          "description": "what-changed only: the concept that moved, in one sentence."
+        },
+        "why": {
+          "type": "string",
+          "description": "what-changed only: the evidenced reason. Omit rather than guess."
+        },
+        "commits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "affectedIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Atlas ids this group touches. Defaults to stepIds when absent."
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "risk": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "documentationImpact": {
+          "type": "string"
+        },
+        "reviewOrder": {
+          "type": "integer",
+          "description": "Recommended review order. Groups without one sort last, then by id."
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
       },
-      "description": "Also carries the conceptual change groups: kind \"what-changed\" with a stable path-change-* id. Progress stores whether a reader reviewed one; the atlas data never stores review state."
+      "description": "Also carries the conceptual change groups: kind \"what-changed\" with a stable path-change-* id. Progress stores whether a reader reviewed one; the atlas data never stores review state. Kind \"reading-order\" is a jump into the reading-order graph rather than a list of stops; its stepIds are the graph nodes."
     },
-
     "explorerGroup": {
       "type": "object",
-      "required": ["id", "title", "what", "paths", "componentIds", "whyItMatters", "sources", "confidence"],
+      "required": [
+        "id",
+        "title",
+        "what",
+        "paths",
+        "componentIds",
+        "whyItMatters",
+        "sources",
+        "confidence"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "title": { "type": "string" },
-        "technicalName": { "type": "string" },
-        "kind": { "enum": ["area", "district"] },
-        "what": { "type": "string", "description": "The responsibility, not the folder name." },
-        "paths": { "type": "array", "items": { "type": "string" } },
-        "componentIds": { "type": "array", "items": { "type": "string" } },
-        "parentId": { "type": "string", "description": "The island this area sits under. Omit when it genuinely spans more than one." },
-        "keyFileIds": { "type": "array", "items": { "type": "string" } },
-        "whyItMatters": { "type": "string" },
-        "sources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sourceRef" } },
-        "confidence": { "$ref": "#/$defs/confidence" }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string"
+        },
+        "technicalName": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "area",
+            "district"
+          ]
+        },
+        "what": {
+          "type": "string",
+          "description": "The responsibility, not the folder name."
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "componentIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parentId": {
+          "type": "string",
+          "description": "The island this area sits under. Omit when it genuinely spans more than one."
+        },
+        "keyFileIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "whyItMatters": {
+          "type": "string"
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
       }
     },
-
     "explorerFile": {
       "type": "object",
-      "required": ["id", "name", "path", "parentId", "responsibility", "whyItMatters", "sources", "confidence"],
+      "required": [
+        "id",
+        "name",
+        "path",
+        "parentId",
+        "responsibility",
+        "whyItMatters",
+        "sources",
+        "confidence"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "kind": { "const": "file" },
-        "name": { "type": "string" },
-        "path": { "type": "string" },
-        "parentId": { "type": "string", "description": "Area id, or the component id when no area contains it." },
-        "componentId": { "type": "string" },
-        "responsibility": { "type": "string" },
-        "symbols": { "type": "array", "items": { "type": "string" } },
-        "dependencies": { "type": "array", "items": { "type": "string" } },
-        "dependents": { "type": "array", "items": { "type": "string" } },
-        "tests": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } },
-        "whyItMatters": { "type": "string" },
-        "sources": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } },
-        "confidence": { "$ref": "#/$defs/confidence" },
-        "changed": { "$ref": "#/$defs/changed" }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "const": "file"
+        },
+        "name": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "parentId": {
+          "type": "string",
+          "description": "Area id, or the component id when no area contains it."
+        },
+        "componentId": {
+          "type": "string"
+        },
+        "responsibility": {
+          "type": "string"
+        },
+        "symbols": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "dependents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "whyItMatters": {
+          "type": "string"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "changed": {
+          "$ref": "#/$defs/changed"
+        }
       },
       "description": "A selected, load-bearing file — never the whole tree. A moved file keeps its id and takes a new path."
     },
-
     "component": {
       "type": "object",
-      "required": ["id", "name", "category", "responsibility", "depth", "sources", "confidence"],
+      "required": [
+        "id",
+        "name",
+        "category",
+        "responsibility",
+        "depth",
+        "sources",
+        "confidence"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "name": { "type": "string" },
-        "technicalName": { "type": "string", "description": "Package or service name, shown beside the friendly one." },
-        "worldType": { "enum": ["island", "module"], "description": "A module is nested inside its parent island." },
-        "parentId": { "type": "string", "description": "Parent component id when worldType is \"module\"." },
-        "category": {
-          "enum": ["frontend", "admin", "mobile", "cli", "backend", "api", "worker", "domain",
-                   "shared-lib", "shared-ui", "database", "cache", "storage", "queue", "events",
-                   "external", "infra", "build", "tests"]
+        "id": {
+          "$ref": "#/$defs/id"
         },
-        "layer": { "type": "integer", "description": "0 = clients, increasing toward infrastructure. Drives map layout." },
+        "name": {
+          "type": "string"
+        },
+        "technicalName": {
+          "type": "string",
+          "description": "Package or service name, shown beside the friendly one."
+        },
+        "worldType": {
+          "enum": [
+            "island",
+            "module"
+          ],
+          "description": "A module is nested inside its parent island."
+        },
+        "parentId": {
+          "type": "string",
+          "description": "Parent component id when worldType is \"module\"."
+        },
+        "category": {
+          "enum": [
+            "frontend",
+            "admin",
+            "mobile",
+            "cli",
+            "backend",
+            "api",
+            "worker",
+            "domain",
+            "shared-lib",
+            "shared-ui",
+            "database",
+            "cache",
+            "storage",
+            "queue",
+            "events",
+            "external",
+            "infra",
+            "build",
+            "tests"
+          ]
+        },
+        "layer": {
+          "type": "integer",
+          "description": "0 = clients, increasing toward infrastructure. Drives map layout."
+        },
         "map": {
           "type": "object",
           "description": "World placement. Presentation only — validate-atlas.mjs keeps it out of contentHash, so moving an island never tells readers its content changed.",
           "properties": {
-            "x": { "type": "number", "minimum": 0, "maximum": 1 },
-            "y": { "type": "number", "minimum": 0, "maximum": 1 },
-            "layoutKey": { "type": "string", "description": "Stable placement input, e.g. \"layer-2:api\". Never random per render." },
-            "theme": { "type": "string", "description": "Landmark vocabulary: harbor, vault, cave, lighthouse, workshop, watchtower, ruins…" }
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "layoutKey": {
+              "type": "string",
+              "description": "Stable placement input, e.g. \"layer-2:api\". Never random per render."
+            },
+            "theme": {
+              "type": "string",
+              "description": "Landmark vocabulary: harbor, vault, cave, lighthouse, workshop, watchtower, ruins…"
+            }
           }
         },
-        "accent": { "type": "string", "description": "Optional palette slot. Category shape and icon must still distinguish it — colour is never the only encoding." },
-        "owners": { "type": "array", "items": { "type": "string" }, "description": "Only when repository evidence supports ownership." },
-        "complexity": { "enum": ["low", "medium", "high"] },
-        "risk": { "enum": ["low", "medium", "high"] },
-        "health": { "type": "string" },
-        "lastChangedCommit": { "type": "string" },
-        "responsibility": { "type": "string" },
-        "audience": { "type": "string" },
-        "entryPoint": { "$ref": "#/$defs/sourceRef" },
-        "keyDirectories": { "type": "array", "items": { "type": "string" } },
-        "example": { "type": "string" },
-        "tests": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } },
-        "depth": { "$ref": "#/$defs/depth" },
-        "why": { "$ref": "#/$defs/why" },
-        "sources": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" }, "minItems": 1 },
-        "confidence": { "$ref": "#/$defs/confidence" },
-        "changed": { "$ref": "#/$defs/changed" },
-        "conflict": { "$ref": "#/$defs/conflict" },
-        "mergedFrom": { "type": "array", "items": { "type": "string" }, "description": "Ids merged into this one; progress transfers once." },
-        "contentHash": { "type": "string", "description": "Generated by validate-atlas.mjs. Do not hand-write." }
+        "accent": {
+          "type": "string",
+          "description": "Optional palette slot. Category shape and icon must still distinguish it — colour is never the only encoding."
+        },
+        "owners": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Only when repository evidence supports ownership."
+        },
+        "complexity": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "risk": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "health": {
+          "type": "string"
+        },
+        "lastChangedCommit": {
+          "type": "string"
+        },
+        "responsibility": {
+          "type": "string"
+        },
+        "audience": {
+          "type": "string"
+        },
+        "entryPoint": {
+          "$ref": "#/$defs/sourceRef"
+        },
+        "keyDirectories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "type": "string"
+        },
+        "tests": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "depth": {
+          "$ref": "#/$defs/depth"
+        },
+        "why": {
+          "$ref": "#/$defs/why"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          },
+          "minItems": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "changed": {
+          "$ref": "#/$defs/changed"
+        },
+        "conflict": {
+          "$ref": "#/$defs/conflict"
+        },
+        "mergedFrom": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Ids merged into this one; progress transfers once."
+        },
+        "contentHash": {
+          "type": "string",
+          "description": "Generated by validate-atlas.mjs. Do not hand-write."
+        }
       }
     },
-
     "connection": {
       "type": "object",
-      "required": ["id", "from", "to", "mechanism"],
+      "required": [
+        "id",
+        "from",
+        "to",
+        "mechanism"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "from": { "type": "string" },
-        "to": { "type": "string" },
-        "mechanism": {
-          "enum": ["http", "rpc", "graphql", "server-action", "websocket", "sse", "queue",
-                   "event-bus", "webhook", "scheduled", "polling", "shared-storage", "ipc",
-                   "sql", "cache", "import"]
+        "id": {
+          "$ref": "#/$defs/id"
         },
-        "label": { "type": "string" },
-        "data": { "type": "string" },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "mechanism": {
+          "enum": [
+            "http",
+            "rpc",
+            "graphql",
+            "server-action",
+            "websocket",
+            "sse",
+            "queue",
+            "event-bus",
+            "webhook",
+            "scheduled",
+            "polling",
+            "shared-storage",
+            "ipc",
+            "sql",
+            "cache",
+            "import"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "data": {
+          "type": "string"
+        },
         "routeType": {
-          "enum": ["sea-route", "current", "bridge", "ferry", "cargo", "cable", "air", "broken"],
+          "enum": [
+            "sea-route",
+            "current",
+            "bridge",
+            "ferry",
+            "cargo",
+            "cable",
+            "air",
+            "broken"
+          ],
           "description": "How the route is drawn. A redundant encoding of the claim, never the claim itself — the semantic list still states mechanism, direction and confidence in words."
         },
-        "relationshipType": { "type": "string", "description": "e.g. code-dependency, runtime-call, infrastructure-dependency, external-api." },
-        "runtime": { "type": "boolean", "description": "true = data actually flows at runtime; false = a static relationship such as an import." },
-        "strength": { "enum": ["weak", "normal", "tight"] },
-        "direction": { "enum": ["one-way", "two-way"] },
-        "validation": { "type": "string" },
-        "auth": { "type": "string" },
-        "onSuccess": { "type": "string" },
-        "onFailure": { "type": "string" },
-        "retry": { "type": "string" },
-        "recovery": { "type": "string" },
-        "whyThisMechanism": { "type": "string" },
-        "confidence": { "$ref": "#/$defs/confidence" },
-        "sources": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } },
-        "changed": { "$ref": "#/$defs/changed" }
+        "relationshipType": {
+          "type": "string",
+          "description": "e.g. code-dependency, runtime-call, infrastructure-dependency, external-api."
+        },
+        "runtime": {
+          "type": "boolean",
+          "description": "true = data actually flows at runtime; false = a static relationship such as an import."
+        },
+        "strength": {
+          "enum": [
+            "weak",
+            "normal",
+            "tight"
+          ]
+        },
+        "direction": {
+          "enum": [
+            "one-way",
+            "two-way"
+          ]
+        },
+        "validation": {
+          "type": "string"
+        },
+        "auth": {
+          "type": "string"
+        },
+        "onSuccess": {
+          "type": "string"
+        },
+        "onFailure": {
+          "type": "string"
+        },
+        "retry": {
+          "type": "string"
+        },
+        "recovery": {
+          "type": "string"
+        },
+        "whyThisMechanism": {
+          "type": "string"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "changed": {
+          "$ref": "#/$defs/changed"
+        }
       }
     },
-
     "workflow": {
       "type": "object",
-      "required": ["id", "title", "steps", "confidence"],
+      "required": [
+        "id",
+        "title",
+        "steps",
+        "confidence"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "title": { "type": "string" },
-        "hook": { "type": "string" },
-        "trigger": { "type": "string" },
-        "outcome": { "type": "string" },
-        "recap": { "type": "string" },
-        "steps": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/step" } },
-        "failureScenario": { "type": "object" },
-        "sources": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } },
-        "confidence": { "$ref": "#/$defs/confidence" },
-        "changed": { "$ref": "#/$defs/changed" },
-        "contentHash": { "type": "string" }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string"
+        },
+        "hook": {
+          "type": "string"
+        },
+        "trigger": {
+          "type": "string"
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "recap": {
+          "type": "string"
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/step"
+          }
+        },
+        "failureScenario": {
+          "type": "object"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "changed": {
+          "$ref": "#/$defs/changed"
+        },
+        "contentHash": {
+          "type": "string"
+        }
       }
     },
-
     "step": {
       "type": "object",
-      "required": ["id", "title", "plain", "why"],
+      "required": [
+        "id",
+        "title",
+        "plain",
+        "why"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "title": { "type": "string" },
-        "layer": {
-          "enum": ["frontend", "request", "route", "middleware", "service", "domain",
-                   "data", "external", "event", "job", "response", "ui-update"]
+        "id": {
+          "$ref": "#/$defs/id"
         },
-        "componentId": { "type": "string", "description": "Links the step to a map node for the Big picture control." },
-        "plain": { "type": "string" },
-        "source": { "$ref": "#/$defs/sourceRef" },
-        "why": { "type": "string" },
-        "input": { "type": "string" },
-        "output": { "type": "string" },
-        "failure": { "type": "string" },
-        "test": { "$ref": "#/$defs/sourceRef" },
+        "title": {
+          "type": "string"
+        },
+        "layer": {
+          "enum": [
+            "frontend",
+            "request",
+            "route",
+            "middleware",
+            "service",
+            "domain",
+            "data",
+            "external",
+            "event",
+            "job",
+            "response",
+            "ui-update"
+          ]
+        },
+        "componentId": {
+          "type": "string",
+          "description": "Links the step to a map node for the Big picture control."
+        },
+        "plain": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/sourceRef"
+        },
+        "why": {
+          "type": "string"
+        },
+        "input": {
+          "type": "string"
+        },
+        "output": {
+          "type": "string"
+        },
+        "failure": {
+          "type": "string"
+        },
+        "test": {
+          "$ref": "#/$defs/sourceRef"
+        },
         "excerpt": {
           "type": "object",
           "description": "Short and load-bearing. Never a large source file.",
-          "properties": { "lang": { "type": "string" }, "caption": { "type": "string" }, "code": { "type": "string" } }
+          "properties": {
+            "lang": {
+              "type": "string"
+            },
+            "caption": {
+              "type": "string"
+            },
+            "code": {
+              "type": "string"
+            }
+          }
         },
-        "confidence": { "$ref": "#/$defs/confidence" },
-        "changed": { "$ref": "#/$defs/changed" },
-        "contentHash": { "type": "string" }
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "changed": {
+          "$ref": "#/$defs/changed"
+        },
+        "contentHash": {
+          "type": "string"
+        }
       }
     },
-
     "entity": {
       "type": "object",
-      "required": ["id", "name", "realWorldMeaning", "dataClass", "depth", "sources", "confidence"],
+      "required": [
+        "id",
+        "name",
+        "realWorldMeaning",
+        "dataClass",
+        "depth",
+        "sources",
+        "confidence"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "name": { "type": "string" },
-        "realWorldMeaning": { "type": "string" },
-        "dataClass": {
-          "enum": ["operational", "historical", "audit", "configuration", "derived",
-                   "cached", "public", "read-model", "event", "external", "temporary"]
+        "id": {
+          "$ref": "#/$defs/id"
         },
-        "persistence": { "enum": ["persisted", "computed", "cached", "temporary", "published"] },
-        "createdBy": { "type": "array", "items": { "type": "string" } },
-        "readBy": { "type": "array", "items": { "type": "string" } },
+        "name": {
+          "type": "string"
+        },
+        "realWorldMeaning": {
+          "type": "string"
+        },
+        "dataClass": {
+          "enum": [
+            "operational",
+            "historical",
+            "audit",
+            "configuration",
+            "derived",
+            "cached",
+            "public",
+            "read-model",
+            "event",
+            "external",
+            "temporary"
+          ]
+        },
+        "persistence": {
+          "enum": [
+            "persisted",
+            "computed",
+            "cached",
+            "temporary",
+            "published"
+          ]
+        },
+        "createdBy": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "readBy": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "relationships": {
           "type": "array",
-          "items": { "type": "object", "properties": { "to": { "type": "string" }, "kind": { "type": "string" }, "note": { "type": "string" } } }
+          "items": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            }
+          }
         },
-        "lifecycle": { "type": "array", "items": { "type": "string" } },
-        "validatedAt": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } },
-        "storedAt": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } },
-        "whySeparate": { "type": "string" },
-        "depth": { "$ref": "#/$defs/depth" },
-        "why": { "$ref": "#/$defs/why" },
-        "sources": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" }, "minItems": 1 },
-        "confidence": { "$ref": "#/$defs/confidence" },
-        "changed": { "$ref": "#/$defs/changed" },
-        "contentHash": { "type": "string" }
+        "lifecycle": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "lifecycleText": {
+          "type": "string",
+          "description": "Optional explicit branching or independent-state description; preferred when lifecycle is not a single linear path."
+        },
+        "validatedAt": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "storedAt": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "whySeparate": {
+          "type": "string"
+        },
+        "depth": {
+          "$ref": "#/$defs/depth"
+        },
+        "why": {
+          "$ref": "#/$defs/why"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          },
+          "minItems": 1
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "changed": {
+          "$ref": "#/$defs/changed"
+        },
+        "contentHash": {
+          "type": "string"
+        }
       }
     },
-
     "term": {
       "type": "object",
-      "required": ["id", "term", "short"],
+      "required": [
+        "id",
+        "term",
+        "short"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "term": { "type": "string" },
-        "short": { "type": "string" },
-        "technical": { "type": "string" },
-        "why": { "type": "string" },
-        "appearsIn": { "type": "array", "items": { "type": "string" } },
-        "related": { "type": "array", "items": { "type": "string" } },
-        "example": { "type": "string" },
-        "sources": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } },
-        "confidence": { "$ref": "#/$defs/confidence" }
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "term": {
+          "type": "string"
+        },
+        "short": {
+          "type": "string"
+        },
+        "technical": {
+          "type": "string"
+        },
+        "why": {
+          "type": "string"
+        },
+        "appearsIn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "type": "string"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        }
       }
     },
-
     "check": {
       "type": "object",
-      "required": ["id", "attachedTo", "question", "options", "explanation"],
+      "required": [
+        "id",
+        "attachedTo",
+        "question",
+        "options",
+        "explanation"
+      ],
       "description": "Optional, skippable, never scored.",
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "attachedTo": { "type": "string" },
-        "kind": { "enum": ["next-step", "match", "predict-receiver", "where-to-change", "order-stages", "frontend-vs-backend"] },
-        "question": { "type": "string" },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "attachedTo": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "next-step",
+            "match",
+            "predict-receiver",
+            "where-to-change",
+            "order-stages",
+            "frontend-vs-backend"
+          ]
+        },
+        "question": {
+          "type": "string"
+        },
         "options": {
           "type": "array",
           "minItems": 2,
-          "items": { "type": "object", "required": ["text"], "properties": { "text": { "type": "string" }, "correct": { "type": "boolean" } } }
+          "items": {
+            "type": "object",
+            "required": [
+              "text"
+            ],
+            "properties": {
+              "text": {
+                "type": "string"
+              },
+              "correct": {
+                "type": "boolean"
+              }
+            }
+          }
         },
-        "explanation": { "type": "string", "description": "Shown immediately, including for a correct answer." },
-        "sources": { "type": "array", "items": { "$ref": "#/$defs/sourceRef" } }
+        "explanation": {
+          "type": "string",
+          "description": "Shown immediately, including for a correct answer."
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        }
       }
+    },
+    "readingStage": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id",
+          "description": "Stable, prefixed \"stage-\". Its position in the array is the graph row."
+        },
+        "name": {
+          "type": "string"
+        },
+        "what": {
+          "type": "string",
+          "description": "One or two sentences: why these files belong together and what the stage buys the reader."
+        }
+      },
+      "description": "One band of the reading-order graph. Order is meaningful: a node may only depend on nodes in this stage or an earlier one."
+    },
+    "readingNode": {
+      "type": "object",
+      "required": [
+        "id",
+        "stage",
+        "title",
+        "path",
+        "what",
+        "lookFor",
+        "validate",
+        "sources"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id",
+          "description": "Stable, prefixed \"read-\". Progress is stored against it exactly like any section id."
+        },
+        "stage": {
+          "type": "string",
+          "description": "A readingOrder.stages[].id."
+        },
+        "title": {
+          "type": "string",
+          "description": "Usually the bare file name — the graph node is small."
+        },
+        "path": {
+          "type": "string",
+          "description": "Repository-relative path, validated against the recorded commit."
+        },
+        "what": {
+          "type": "string",
+          "description": "What this file is, in one sentence."
+        },
+        "lookFor": {
+          "type": "string",
+          "description": "The load-bearing idea in it — what a reader should come away holding."
+        },
+        "validate": {
+          "type": "string",
+          "description": "How to check the understanding: a test to run, a command, or a claim to confirm."
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Reading-order node ids this file assumes. MUST be earlier in the order (earlier stage, or earlier within the same stage) — that is what keeps the graph acyclic and makes the drawn layout correct by construction. Never a lock: an unmet prerequisite is drawn as a hint."
+        },
+        "fileId": {
+          "type": "string",
+          "description": "Optional explorer file id, so the node links into the rest of the atlas."
+        },
+        "componentId": {
+          "type": "string",
+          "description": "Optional island id."
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "changed": {
+          "$ref": "#/$defs/changed"
+        },
+        "contentHash": {
+          "type": "string"
+        }
+      },
+      "description": "One file to read, and one node in the graph."
     }
   }
 }

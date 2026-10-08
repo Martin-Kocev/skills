@@ -38,13 +38,14 @@ Provide these repository-supported destinations:
 
 1. Overview
 2. World Map
-3. Recent Changes
-4. Guided Tours
-5. Search
-6. Bookmarks
-7. Quests
-8. Glossary
-9. Settings
+3. Reading Order
+4. Recent Changes
+5. Guided Tours
+6. Search
+7. Bookmarks
+8. Quests
+9. Glossary
+10. Settings
 
 Keep branch, exact indexed commit, indexed time, staleness, global search, progress, and update affordance persistently available on desktop. Preserve the same status in compact mobile surfaces.
 
@@ -128,6 +129,14 @@ Use calm ocean blues/cyans, seafoam and forest greens, sand/stone neutrals, dark
 Use stylized terrain, paths, docks, workshops, caves, and towers with strong silhouettes, rounded panels, compact badges, and large touch targets. Keep decoration quiet. Avoid generic admin dashboards, walls of cards, dense primary tables, excessive glass, heavy gradients, low contrast, tiny controls, realistic terrain that obscures meaning, and raw directory trees as the main experience. Group or progressively disclose long histories, validation inventories, and progress lists so dozens of similar rows never become one unbroken wall.
 
 Draw icons from the existing icon system; never use Unicode symbols as load-bearing category markers. Use monospace only for code, paths, hashes, and measurements. Spend boldness once per view.
+
+## The reading-order graph
+
+Stage bands read top to bottom, nodes left to right inside a band, and every edge therefore points forward — that is the whole reason the layout is legible without a layout engine. Draw only the edges in SVG and build the nodes as real focusable controls positioned over it; an SVG shape pretending to be a button loses focus rings, `aria-pressed`, and the accessible name, on the one page whose point is a control you press per node.
+
+Fade an edge by the distance it spans: a few long dependencies drawn at full weight read as a tangle across the whole graph, and selecting either end should be what brings one back to full strength. Distinguish a met prerequisite from an unmet one by dash pattern as well as colour. Give the canvas its own scroller — it will be wider than the panel — and never let the document scroll horizontally.
+
+Three node states, each carrying an icon and a word: read, ready, later. `later` is dimmer, never disabled.
 
 ## Motion and session modes
 

@@ -10,6 +10,10 @@ const expectedSkills = readdirSync(skillsRoot, { withFileTypes: true })
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
   .sort();
+const explicitInvocationOnlySkills = new Set([
+  'interactive-codebase-atlas',
+  'orchestrator',
+]);
 const errors = [];
 
 function fail(message) {
@@ -49,8 +53,18 @@ for (const skillName of expectedSkills) {
   const markdown = read(path.join(skillRoot, 'SKILL.md'));
   const fields = frontmatter(markdown, skillName);
 
-  if (fields.size !== 2 || !fields.has('name') || !fields.has('description')) {
-    fail(`${skillName}: frontmatter must contain only name and description`);
+  const allowedFields = new Set(['name', 'description', 'disable-model-invocation']);
+  if (!fields.has('name') || !fields.has('description')) {
+    fail(`${skillName}: frontmatter must contain name and description`);
+  }
+  for (const key of fields.keys()) {
+    if (!allowedFields.has(key)) fail(`${skillName}: unsupported frontmatter field: ${key}`);
+  }
+  if (fields.has('disable-model-invocation') && fields.get('disable-model-invocation') !== 'true') {
+    fail(`${skillName}: disable-model-invocation must be true when present`);
+  }
+  if (explicitInvocationOnlySkills.has(skillName) && fields.get('disable-model-invocation') !== 'true') {
+    fail(`${skillName}: explicit-invocation-only skills must set disable-model-invocation: true`);
   }
   if (fields.get('name') !== skillName) {
     fail(`${skillName}: frontmatter name does not match its directory`);
@@ -65,6 +79,12 @@ for (const skillName of expectedSkills) {
   }
   if (!metadata.includes(`$${skillName}`)) {
     fail(`${skillName}: default_prompt must explicitly mention $${skillName}`);
+  }
+  if (
+    explicitInvocationOnlySkills.has(skillName)
+    && !/^policy:\r?\n(?:[ \t]+.*\r?\n)*?[ \t]+allow_implicit_invocation:[ \t]+false[ \t]*$/m.test(metadata)
+  ) {
+    fail(`${skillName}: agents/openai.yaml must disable implicit invocation`);
   }
 
   const resourcePattern = /`((?:references|scripts|templates)\/[A-Za-z0-9_./-]+)`/g;

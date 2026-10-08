@@ -68,6 +68,7 @@ node scripts/screenshot-atlas.mjs <atlas-path>
 Check:
 
 - Start screen renders and every offered learning path leads somewhere real
+- Reading order draws every node and edge, marks a node read from the graph, readies its dependents, moves its own meter and not the section meter, and survives a reload
 - World map draws, islands are clickable, routes are filterable, only the selected route animates once, and unchanged coordinates remain stable
 - The semantic list/tree exposes the same selection, relationships, filters, progress, and destinations as the map
 - A workflow simulator steps forward, backward, plays, and pauses

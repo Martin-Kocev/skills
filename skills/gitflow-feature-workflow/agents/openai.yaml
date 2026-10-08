@@ -1,4 +1,4 @@
 interface:
   display_name: "Gitflow Feature Workflow"
-  short_description: "Strict Gitflow for repository code changes"
-  default_prompt: "Use $gitflow-feature-workflow to implement this repository change with the correct Gitflow branch and verification."
+  short_description: "Strict main/dev Gitflow with TDD and an Obsidian LLM wiki"
+  default_prompt: "Use $gitflow-feature-workflow to implement this repository change with the correct Gitflow branch, test-first, and update the project wiki."

@@ -8,7 +8,7 @@
  *   1. data/atlas.json parses and has the required top-level shape
  *   2. every item has a stable id, confidence, sources, and three depth levels
  *   3. ids are unique and every cross-reference resolves
- *   4. every sources[].path exists in the repository; named symbols still appear
+ *   4. every sources[].path exists at repository.commit; named symbols still appear
  *   5. no secret-shaped strings leaked into atlas content
  *   6. contentHash is recomputed for change detection
  *   7. data/ui.json has every key assets/atlas.js asks for, and every field
@@ -18,6 +18,7 @@
  * Exit 0 = clean or warnings only. Exit 1 = errors. Exit 2 = usage problem.
  */
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
@@ -101,12 +102,19 @@ if (ui) {
     'chrome.storage.file.errorLabel', 'chrome.storage.file.errorTitle',
     'sectionTitles.section-auth', 'sectionTitles.section-delivery',
     'views.explorer.empty.recently-changed.title', 'views.explorer.empty.unexplored.title',
+    'views.home.pathMeta.reading-order',
+    ...['done', 'ready', 'later'].flatMap((s) => [
+      `views.readingOrder.stateLabels.${s}`, `views.readingOrder.stateIcons.${s}`]),
+    'views.readingOrder.markRead', 'views.readingOrder.markedRead',
+    'views.readingOrder.detailEmpty.title', 'views.readingOrder.detailEmpty.body',
+    'views.readingOrder.empty.title', 'views.readingOrder.empty.body',
+    'sectionTitles.section-reading-order',
     'chrome.ambient.on', 'chrome.ambient.off',
     // Every collection `collect()` indexes gets a reader-facing name in search
     // results and in the empty-query index summary.
     ...['components', 'areas', 'files', 'connections', 'workflows', 'steps', 'entities', 'channels', 'subsystems',
         'changePlaybooks', 'glossary', 'knowledgeChecks', 'openQuestions', 'learningPaths',
-        'auth', 'delivery'].map((k) => `search.kindLabels.${k}`),
+        'readingOrder', 'auth', 'delivery'].map((k) => `search.kindLabels.${k}`),
     ...['depth', 'theme', 'ambient', 'focus'].flatMap((r) => [
       `views.settings.rows.${r}.title`, `views.settings.rows.${r}.body`]),
     // viewProgress() is reached both as its own page and as the Bookmarks view,
@@ -174,6 +182,78 @@ if (!Array.isArray(atlas.updateHistory) || atlas.updateHistory.length === 0) {
 const repoRoot = path.resolve(repoOverride ?? repoMeta.path ?? '.');
 const repoReadable = existsSync(repoRoot);
 if (!repoReadable) warn(`repository path not readable (${repoRoot}) — source references were not checked`);
+
+const gitBaseArgs = ['-c', `safe.directory=${repoRoot}`, '-C', repoRoot];
+function git(...args) {
+  return execFileSync('git', [...gitBaseArgs, ...args], {
+    encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 16 * 1024 * 1024,
+  });
+}
+let snapshotReadable = false;
+let snapshotPaths = null;
+const snapshotBlobs = new Map();
+if (repoReadable && repoMeta.commit) {
+  try {
+    git('cat-file', '-e', `${repoMeta.commit}^{commit}`);
+    snapshotReadable = true;
+  } catch {
+    warn(`recorded commit ${repoMeta.commitShort ?? repoMeta.commit} is unavailable — source references fall back to the working tree`);
+  }
+}
+
+function normalizedRepoPath(rel) {
+  const raw = String(rel ?? '').replace(/\\/g, '/').replace(/^\.\//, '');
+  if (!raw || path.isAbsolute(String(rel)) || raw === '..' || raw.startsWith('../')) return null;
+  return raw;
+}
+
+if (snapshotReadable) {
+  snapshotPaths = new Set(git('ls-tree', '-r', '--name-only', repoMeta.commit)
+    .split(/\r?\n/).filter(Boolean));
+
+  const referencedPaths = new Set();
+  (function collectPaths(node) {
+    if (Array.isArray(node)) return node.forEach(collectPaths);
+    if (!node || typeof node !== 'object') return;
+    for (const [key, value] of Object.entries(node)) {
+      if (key === 'path' && typeof value === 'string') {
+        const normalized = normalizedRepoPath(value);
+        if (normalized && snapshotPaths.has(normalized)) referencedPaths.add(normalized);
+      } else collectPaths(value);
+    }
+  })(atlas);
+
+  const referencedList = [...referencedPaths];
+  const specs = referencedList.map((rel) => `${repoMeta.commit}:${rel}`);
+  if (specs.length) {
+    const raw = execFileSync('git', [...gitBaseArgs, 'cat-file', '--batch'], {
+      input: specs.join('\n') + '\n', encoding: null,
+      stdio: ['pipe', 'pipe', 'ignore'], maxBuffer: 128 * 1024 * 1024,
+    });
+    let cursor = 0;
+    for (let i = 0; i < specs.length; i += 1) {
+      const lineEnd = raw.indexOf(10, cursor);
+      const header = raw.subarray(cursor, lineEnd).toString('utf8');
+      cursor = lineEnd + 1;
+      if (header.endsWith(' missing')) continue;
+      const parts = header.split(' ');
+      const size = Number(parts[2]);
+      const body = raw.subarray(cursor, cursor + size);
+      cursor += size + 1;
+      if (parts[1] === 'blob') snapshotBlobs.set(referencedList[i], body.toString('utf8'));
+    }
+  }
+}
+
+function repoPathExists(rel) {
+  const normalized = normalizedRepoPath(rel);
+  if (!normalized) return false;
+  if (snapshotReadable) {
+    return snapshotPaths.has(normalized) || [...snapshotPaths].some((file) => file.startsWith(normalized.replace(/\/$/, '') + '/'));
+  }
+  const abs = path.resolve(repoRoot, normalized);
+  return (abs === repoRoot || abs.startsWith(repoRoot + path.sep)) && existsSync(abs);
+}
 
 /* ------------------------------------------------------- 2. collections -- */
 
@@ -289,6 +369,70 @@ for (const [collection, list, prefix] of [
   });
 }
 
+/* ------------------------------------------------------- 2b. readingOrder -- */
+
+/* The reading-order graph must actually be a graph a reader can follow: a DAG,
+   laid out so that a node's prerequisites are always earlier — either in an
+   earlier stage, or earlier inside the same stage. That single rule is what
+   makes the drawn layout (stage = row, authored index = column) correct by
+   construction rather than by luck, and it makes a cycle unrepresentable. */
+const reading = atlas.readingOrder;
+if (reading != null) {
+  if (reading.id) registerId(reading, 'readingOrder');
+  const stageIndex = new Map();
+  (reading.stages ?? []).forEach((stage, i) => {
+    if (!stage?.id) return err(`readingOrder.stages[${i}]: missing id`);
+    if (!stage.id.startsWith('stage-')) err(`readingOrder.stages[${i}]: id "${stage.id}" must start with "stage-"`);
+    if (stageIndex.has(stage.id)) err(`readingOrder.stages[${i}]: duplicate stage id "${stage.id}"`);
+    stageIndex.set(stage.id, i);
+    if (!stage.name) err(`readingOrder.stages[${i}]: missing name`);
+  });
+  if (!stageIndex.size) err('readingOrder: no stages');
+
+  const nodes = reading.nodes ?? [];
+  if (!Array.isArray(nodes) || nodes.length === 0) err('readingOrder: no nodes');
+  const rank = new Map();  // node id -> [stage index, index within stage]
+  const perStage = new Map();
+  nodes.forEach((node, i) => {
+    const where = `readingOrder.nodes[${i}]`;
+    registerId(node, where);
+    if (node?.id && !node.id.startsWith('read-')) err(`${where}: id "${node.id}" must start with "read-"`);
+    for (const key of ['title', 'path', 'what', 'lookFor', 'validate']) {
+      if (!node?.[key] || !String(node[key]).trim()) err(`${where}: ${key} is empty`);
+    }
+    if (!Array.isArray(node?.sources) || node.sources.length === 0) {
+      err(`${where}: no sources — a reading step names a real file at the recorded commit`);
+    }
+    if (!stageIndex.has(node?.stage)) err(`${where}: stage "${node?.stage}" is not a declared stage`);
+    const si = stageIndex.get(node?.stage) ?? -1;
+    const within = (perStage.get(node?.stage) ?? 0);
+    perStage.set(node?.stage, within + 1);
+    if (node?.id) rank.set(node.id, [si, within]);
+    items.push({ item: node, where, collection: 'readingOrder' });
+  });
+
+  nodes.forEach((node, i) => {
+    const where = `readingOrder.nodes[${i}]`;
+    const mine = rank.get(node?.id);
+    for (const dep of node?.dependsOn ?? []) {
+      const theirs = rank.get(dep);
+      if (!theirs) { err(`${where}: dependsOn "${dep}" is not a reading-order node`); continue; }
+      if (!mine) continue;
+      const earlier = theirs[0] < mine[0] || (theirs[0] === mine[0] && theirs[1] < mine[1]);
+      if (!earlier) {
+        err(`${where}: dependsOn "${dep}" is not earlier in the reading order — the graph must stay acyclic and forward-only`);
+      }
+    }
+    // Components and explorer files are registered above, so these resolve here.
+    for (const ref of [node?.fileId, node?.componentId]) {
+      if (ref != null && !ids.has(ref)) err(`${where}: "${ref}" does not resolve to any atlas item`);
+    }
+  });
+
+  const orphanStages = [...stageIndex.keys()].filter((id) => !perStage.get(id));
+  for (const id of orphanStages) warn(`readingOrder: stage "${id}" has no nodes`);
+}
+
 // Workflow steps are progress-tracked items in their own right.
 for (const [wi, wf] of (atlas.workflows ?? []).entries()) {
   if (!Array.isArray(wf?.steps) || wf.steps.length === 0) {
@@ -358,8 +502,14 @@ for (const file of atlas.explorer?.files ?? []) {
 const fileCache = new Map();
 function readRepoFile(rel) {
   if (fileCache.has(rel)) return fileCache.get(rel);
-  const abs = path.resolve(repoRoot, rel);
-  const text = existsSync(abs) && !abs.endsWith(path.sep) ? safeRead(abs) : null;
+  const normalized = normalizedRepoPath(rel);
+  let text = null;
+  if (normalized && snapshotReadable) {
+    text = snapshotBlobs.get(normalized) ?? null;
+  } else if (normalized) {
+    const abs = path.resolve(repoRoot, normalized);
+    text = repoPathExists(normalized) ? safeRead(abs) : null;
+  }
   fileCache.set(rel, text);
   return text;
 }
@@ -374,9 +524,8 @@ function checkSource(src, where) {
   if (!src || !src.path) return;
   refTotal += 1;
   if (!repoReadable) return;
-  const abs = path.resolve(repoRoot, src.path);
-  if (!existsSync(abs)) {
-    err(`${where}: source path does not exist — ${src.path}`);
+  if (!repoPathExists(src.path)) {
+    err(`${where}: source path does not exist at ${snapshotReadable ? `recorded commit ${repoMeta.commitShort}` : 'the working tree'} — ${src.path}`);
     return;
   }
   refOk += 1;
@@ -420,7 +569,7 @@ for (const c of atlas.components ?? []) {
   for (const dir of c.keyDirectories ?? []) {
     refTotal += 1;
     if (!repoReadable) continue;
-    if (existsSync(path.resolve(repoRoot, dir))) refOk += 1;
+    if (repoPathExists(dir)) refOk += 1;
     else err(`component ${c.id}: keyDirectory does not exist — ${dir}`);
   }
 }
@@ -428,7 +577,7 @@ for (const g of atlas.explorer?.groups ?? []) {
   for (const p of g.paths ?? []) {
     refTotal += 1;
     if (!repoReadable) continue;
-    if (existsSync(path.resolve(repoRoot, p))) refOk += 1;
+    if (repoPathExists(p)) refOk += 1;
     else err(`explorer group ${g.id}: path does not exist — ${p}`);
   }
 }
@@ -515,10 +664,12 @@ if (write && errors.length === 0) {
 const counts = Object.entries(COLLECTIONS)
   .filter(([c]) => Array.isArray(atlas[c]) && atlas[c].length)
   .map(([c]) => `${c} ${atlas[c].length}`)
+  .concat(atlas.readingOrder?.nodes?.length
+    ? [`readingOrder ${atlas.readingOrder.nodes.length} in ${atlas.readingOrder.stages?.length ?? 0} stages`] : [])
   .join(' · ');
 
 console.log(`atlas       ${atlasDir}`);
-console.log(`repository  ${repoRoot}${repoReadable ? '' : ' (unreadable)'}`);
+console.log(`repository  ${repoRoot}${repoReadable ? snapshotReadable ? ' (recorded commit)' : ' (working tree fallback)' : ' (unreadable)'}`);
 console.log(`commit      ${repoMeta.commitShort ?? '?'} — ${repoMeta.commitSubject ?? ''}`);
 console.log(`items       ${items.length} (${counts})`);
 console.log(`sources     ${refOk}/${refTotal} resolved`);

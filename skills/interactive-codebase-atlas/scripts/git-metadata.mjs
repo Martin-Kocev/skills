@@ -17,7 +17,7 @@ const pretty = !args.includes('--json');
 
 function gitRaw(cwd, ...cmd) {
   try {
-    return execFileSync('git', cmd, {
+    return execFileSync('git', ['-c', `safe.directory=${cwd}`, ...cmd], {
       cwd,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],

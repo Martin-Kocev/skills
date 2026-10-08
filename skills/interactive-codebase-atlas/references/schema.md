@@ -59,6 +59,7 @@ Used by nearly every item.
   "glossary": [ … ],
   "knowledgeChecks": [ … ],
   "explorer": { … },
+  "readingOrder": { … },
   "openQuestions": [ … ]
 }
 ```
@@ -253,6 +254,7 @@ The highest-value content in the atlas. Each is a story with an arc.
   "relationships": [{ "to": "entity-table", "kind": "many-to-one",
                       "note": "A table has many reservations over time" }],
   "lifecycle": ["requested", "confirmed", "seated", "completed", "cancelled", "no-show"],
+  "lifecycleText": "REQUESTED → CONFIRMED → SEATED → COMPLETED | CANCELLED | NO_SHOW",
   "validatedAt": [{ "path": "src/api/schemas/reservation.ts", "note": "request shape" },
                   { "path": "migrations/0007_reservation_overlap.sql", "note": "overlap constraint" }],
   "storedAt": [{ "path": "migrations/0003_reservations.sql", "kind": "migration" }],
@@ -260,6 +262,8 @@ The highest-value content in the atlas. Each is a story with an arc.
   "depth": { … }, "why": [ … ], "sources": [ … ], "confidence": "verified", "changed": { … }
 }
 ```
+
+Use `lifecycleText` when states branch, can be entered directly, or are independent conditions. Do not imply a mandatory linear progression merely because `lifecycle` is stored as an array; the UI falls back to joining that array only when no explicit text is authored.
 
 ## channels
 
@@ -428,6 +432,39 @@ Conceptual grouping is the default view. The real folder tree is a toggle, never
 
 Require stable IDs for modules, areas, and selected files. A file move updates `path` without changing its ID when responsibility remains the same. Map/list/tree selection, search, bookmarks, tours, quests, progress, and Recent Changes must reference these same IDs.
 
+## readingOrder
+
+A directed acyclic graph of the files to read, in an order where every one is explained by the ones before it. See `references/sections.md` §3b for the authoring rules.
+
+```jsonc
+{
+  "id": "section-reading-order",
+  "hook": "Forty-five files, in the order that makes each one explain the next.",
+  "goal": "What the reader can do once they have been through the whole graph.",
+  "stages": [
+    { "id": "stage-orient", "name": "Get your bearings",
+      "what": "Why these files belong together and what the stage buys the reader." }
+  ],
+  "nodes": [{
+    "id": "read-place-order",              // permanent, prefixed "read-"
+    "stage": "stage-domain",
+    "title": "place.ts",                   // usually the bare file name; the node is small
+    "path": "src/orders/place.ts",         // validated against repository.commit
+    "what": "The transaction boundary for placing a reservation.",
+    "lookFor": "That the overlap constraint — not the service — is what decides a conflict.",
+    "validate": "`test/api/reservations.spec.ts` proves it; the double-booking case is the one to read.",
+    "dependsOn": ["read-reservation-entity", "read-repository"],
+    "fileId": "file-place-order",          // optional: link into the explorer
+    "componentId": "component-api",        // optional: link into the world map
+    "sources": [ … ], "confidence": "verified", "changed": { … }
+  }]
+}
+```
+
+**The ordering invariant.** Every `dependsOn` target must be earlier: an earlier stage, or an earlier index within the same stage. That makes the graph acyclic and makes the drawn layout (stage = row, authored index = column) correct by construction. `validate-atlas.mjs` enforces it; a violation is an error, not a warning.
+
+Node ids are progress items under the ordinary store and the ordinary permanence rule, but they are **excluded from the section-progress denominator** — see `references/progress.md`.
+
 ## Recent change groups
 
 Represent each conceptual change group as a `learningPaths` item with `kind: "what-changed"`. This keeps its stable ID inside the existing machine-validated collection. Do not add a disconnected raw commit feed.
@@ -470,7 +507,7 @@ Assembled last, from sections that exist. Only offer a path the repository suppo
                "workflow-place-reservation", "section-delivery"] }]
 ```
 
-Kinds: `quick-overview`, `follow-one-action`, `explore`, `continue`, `what-changed`, `review-unfinished`. Show **step counts, never time estimates.**
+Kinds: `quick-overview`, `follow-one-action`, `explore`, `continue`, `what-changed`, `review-unfinished`, `reading-order`. Show **step counts, never time estimates.** A `reading-order` path is a jump into the reading-order graph rather than a list of stops; its `stepIds` are the graph's nodes.
 
 ## Quest presentation
 

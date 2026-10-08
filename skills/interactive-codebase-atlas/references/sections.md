@@ -10,6 +10,7 @@ Provide these destinations whenever their underlying content exists:
 |---|---|
 | **Overview** | Start screen, project orientation, progress, resume, sessions, compact world, recent change groups |
 | **World Map** | Architecture components as islands, connections as routes, explorer groups/trees as deeper levels |
+| **Reading Order** | `readingOrder` as a stage-banded DAG of files to read, each markable read on the graph, with a stage list at parity |
 | **Recent Changes** | Conceptual `what-changed` learning paths, `updateHistory`, changed items, and review state since `lastSeenAtlasCommit` |
 | **Guided Tours** | Learning paths and workflow stories |
 | **Search** | Modules, areas, files, symbols, terms, tours, and natural-language intent |
@@ -83,6 +84,35 @@ One step is in focus at a time. The rail shows where the reader is in the arc. E
 Toggles: conceptual view (default) · actual folder view · recently changed files · files referenced by the current workflow · files relevant to a selected feature · files not yet explored.
 
 Never open on the full file tree. Show groups and areas first; files appear on expansion. Every level exposes friendly name, technical name/path, responsibility, sources, confidence, progress, and change state. The illustrated hierarchy and semantic tree must select and navigate the same stable IDs.
+
+---
+
+## 3b. Reading-order graph
+
+The explorer answers *where does this live?* This answers *what do I open first, and what does it assume I already know?* Author it as `readingOrder` (see `references/schema.md`) whenever the repository has more than a handful of load-bearing files.
+
+**Shape.** A directed acyclic graph of files, grouped into ordered **stages**. A node's `dependsOn` names the files it assumes, and every one of them must be earlier — an earlier stage, or earlier within the same stage. That single rule keeps the graph acyclic *and* makes the drawn layout correct by construction, because stage index is the row and authored index is the column. Enforce it in validation; do not rely on authoring discipline.
+
+**Per node**, all four are required and none is optional prose:
+
+| Field | What it must say |
+|---|---|
+| `what` | What this file is, in one sentence |
+| `lookFor` | The load-bearing idea in it — the thing the reader should come away holding, not a summary |
+| `validate` | How to check they got it: a test to run, a command, a constraint to confirm, a claim to check against the code |
+| `dependsOn` | What it assumes, as node ids |
+
+`validate` is what makes this a reading *and validation* order rather than a syllabus. Prefer a real test file or command in the repository over a rhetorical question.
+
+**Size and shape.** Aim for 25–50 nodes and 7–12 stages, at most five nodes per stage so the drawn row stays under a readable width. Start at orientation documents, end at whatever the reader most wants to change. Every stage needs a `name` and a sentence saying why those files belong together.
+
+**Interaction.** Nodes are marked read **on the graph**, with a control on the node itself — that is the point of the page, and requiring a detail panel first defeats it. Selecting a node opens its notes beside or below the graph. Derive three states: **read**, **ready** (every prerequisite read), and **later**. Never lock a `later` node; an unmet prerequisite is a hint about reading economy, not a gate — the same rule quests follow. Encode state with icon *and* word *and* shape, never hue alone.
+
+**Parity.** Provide a stage-by-stage list of the same nodes with the same controls, defaulting on narrow screens. The graph canvas may overflow its panel and own a scroller; the document must never scroll horizontally. Build nodes as real focusable controls rather than SVG shapes pretending to be buttons — draw only the edges in SVG.
+
+**Progress.** Node ids are progress items like any other, under the same store and the same `id` permanence rule. Keep them **out of the section-progress denominator**: "files read" and "sections understood" are different measures, and folding them together silently moves a number the reader did not change. Give the page its own meter.
+
+Offer it from the start screen as a `learningPaths` entry with `kind: "reading-order"`.
 
 ---
 

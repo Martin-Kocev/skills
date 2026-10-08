@@ -1,117 +1,89 @@
 # Feature and bugfix playbook
 
-Use this playbook for features and non-urgent bug fixes. Both branch from `develop` and merge back into `develop`.
+Features and non-urgent bug fixes branch from `dev` and merge back into `dev`. The rules (TDD, commits, verification, docs, wiki) are in `SKILL.md`; this file gives the order and the commands. Without a remote, skip every push and say so in the report.
 
 ## 1. Plan
 
-Read `AGENTS.md`, restate the requested outcome, list affected files, identify risks, and resolve genuinely ambiguous requirements. Do not pause for requirements the user already made explicit.
-
-Inspect the repository before branching:
-
-```bash
-git branch --show-current
-git status
-git remote
-```
-
-If uncommitted work exists, ask whether to stash, commit, or abort. If unrelated changes are requested, split them into separate branches.
+Follow `references/plan.md`. On resume, re-read `.gitflow/plan.md` before branching.
 
 ## 2. Branch before changes
 
-Update `develop`, then create and publish the task branch when a remote exists:
+```bash
+git status                  # dirty? ask: stash, commit, or abort
+git fetch --prune
+git switch dev
+git pull --ff-only
+git switch -c feature/<short-name>
+git branch --show-current   # confirm before editing
+```
+
+### Announce the branch
+
+Push an empty start commit so teammates see who is changing what before any code lands. Fill it from `.gitflow/plan.md`; keep each line to one sentence.
 
 ```bash
-git checkout develop
-git pull
-git checkout -b feature/<short-name>
+git commit --allow-empty -m "chore: start feature/<short-name>" \
+  -m "Goal: <observable outcome from the plan>" \
+  -m "Scope: <modules and files this branch will change>" \
+  -m "Out of scope: <what it deliberately leaves alone>" \
+  -m "Semver: minor"
 git push -u origin feature/<short-name>
 ```
 
-When no remote exists, omit both push commands and complete locally. Verify the active branch before editing:
+Pull request mode: also open a draft PR so the announcement shows in the PR list:
 
 ```bash
-git branch --show-current
-git status
+gh pr create --draft --base dev --title "feat: <short title>" --body "<the same Goal/Scope/Out of scope/Semver lines>"
 ```
 
-## 3. Implement and commit
+Resuming a branch that already exists: `git fetch --prune`, `git switch feature/<short-name>`, `git pull --ff-only`, so you continue from what the team has pushed. It is already announced; do not add a second start commit.
 
-Implement in small logical units with Conventional Commits:
+## 3. Build test-first
 
-```text
-feat: add avatar upload endpoint
-fix: handle empty CSV rows in importer
-docs: document avatar size limits
-```
+Run the plan's TDD cycles. For each behavior: write the test, see it fail for the right reason, write the minimal code to pass, refactor with the suite green, and commit the test and code together (`feat: ...`, `fix: ...`). Keep these commits local until the branch is finished.
 
-Do not add a co-authorship trailer or AI attribution.
-
-Before every commit, inspect `git status` and the staged diff. Do not commit secrets, `.env` files, credentials, private certificates, large binaries, build artifacts, or editor/OS junk. Add generated or local-only files to `.gitignore`. If a secret is already committed, stop before pushing and tell the user to rotate it.
-
-## 4. Test
-
-Every feature gets tests. Every bug fix gets a regression test that fails without the fix.
-
-Use the commands recorded in `AGENTS.md` or the repository configuration. Run:
-
-1. The focused new or regression test.
-2. The full test suite.
-3. Configured lint and format checks.
-
-Never merge red. If an unrelated pre-existing failure remains, report it and ask how to proceed.
-
-## 5. Document
-
-Before merge:
-
-- Update `README.md` when public behavior, setup, commands, or architecture changed.
-- Update `AGENTS.md` for task-touched files, architecture or dependency changes, reusable commands that actually succeeded, and real gotchas.
-- Add the code change under `## [Unreleased]` in `CHANGELOG.md` using `references/release.md`.
-
-When an observable predicate does not apply, mark it N/A in the checklist instead of inventing content.
-
-## 6. Sync and verify
-
-Walk the definition of done in `SKILL.md`, then sync the task branch with the latest `develop`:
+If the scope changes materially (a new module, a dropped requirement, a semver change), tell the team:
 
 ```bash
-git checkout develop
-git pull
-git checkout feature/<short-name>
-git merge develop
+git commit --allow-empty -m "chore: update scope" -m "<what changed and why>"
+git push
 ```
 
-Resolve conflicts deliberately. Rerun the full suite after any conflict resolution.
+## 4. Verify, document, ingest
 
-## 7. Finish
+1. Run the focused test, then the full test suite, then lint/format checks.
+2. Update `README.md`, `AGENTS.md`, and `CHANGELOG.md` where their predicates apply.
+3. Ingest the branch into the wiki (`references/wiki.md`) and commit `docs(wiki): ...`.
 
-### Local merge mode (default)
+## 5. Sync with dev
 
-With a remote:
+```bash
+git fetch --prune
+git switch dev
+git pull --ff-only
+git switch feature/<short-name>
+git merge dev
+```
+
+If the merge brought changes or conflicts, rerun the full suite. Walk the definition of done in `SKILL.md`.
+
+## 6. Finish
+
+Push the branch first; this is the finish push that publishes the work. If it is rejected because a teammate pushed to the branch, `git pull --no-rebase`, rerun the full suite, and push again.
+
+Local merge mode (default). Confirm each command succeeded before running the next:
 
 ```bash
 git push origin feature/<short-name>
-git checkout develop
+git switch dev
 git merge --no-ff feature/<short-name>
-git push origin develop
+git push origin dev
 git branch -d feature/<short-name>
 git push origin --delete feature/<short-name>
 ```
 
-Without a remote, perform the checkout, `--no-ff` merge, and safe local branch deletion only. State clearly that nothing was pushed.
+Pull request mode: push the branch, mark the draft PR ready with `gh pr ready` (or run `gh pr create --base dev` if none exists), verify CI, report the link, and stop without merging or deleting the branch.
 
-Confirm each command succeeded before continuing. A rejected push is not completion: resolve the divergence or switch to pull request mode when branch protection caused the rejection.
+## 7. Report
 
-### Pull request mode
-
-Push the branch and open a PR targeting `develop`:
-
-```bash
-gh pr create --base develop
-```
-
-Verify CI is green, report the PR link, and stop for user review. Do not merge or delete the branch.
-
-## 8. Report
-
-Summarize the outcome, changed files, commits, focused and full test results, lint/format results, documentation updates, CI state, and exactly what was pushed or left local.
+Per `SKILL.md`, plus the path of `.gitflow/plan.md` and whether it was kept or deleted.

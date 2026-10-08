@@ -85,7 +85,13 @@ Track at every level, and roll up:
 - Individual important concept (workflow steps, entities, subsystem stages, glossary terms)
 - Tour stop, optional quest, and conceptual change group
 
+- Reading-order node
+
 Parent completion is derived from children, never stored separately — a section shows "4 of 7 concepts" and turns complete when the reader marks it complete, not automatically when the children finish.
+
+**Two denominators, deliberately.** Reading-order nodes are ordinary progress items — same store, same ids, same permanence rule — but they are counted **separately** from atlas sections and never folded into the section meter. "Files read" and "sections understood" measure different things, and merging them would move a percentage the reader never changed the day the graph was added. Give the reading-order page its own meter and leave the rail's section meter alone; a test should assert this, because it is the kind of thing a later refactor merges by accident.
+
+Derive a reading-order node's **ready** state from its prerequisites, never store it. An unmet prerequisite is a hint about reading economy and must never lock the node — the same rule quests follow.
 
 ## The completion panel
 
@@ -111,6 +117,7 @@ The reader must be able to:
 - Filter to unfinished only
 - Filter to bookmarked only
 - Filter to changed since last view
+- Follow a changed workflow-step link to that exact step, with its *Updated since you last viewed* badge still visible during the first revisit; clear the badge only for later visits
 - Continue from the last viewed point
 - Resume the selected island, active tour stop, scroll position, filters, and map/list view
 - See a recap of completed material
@@ -127,7 +134,7 @@ Export exists for moving between browsers and for sharing state from a static-on
 - Kind-prefixed, kebab-case, derived from meaning rather than position: `workflow-place-reservation`, not `workflow-3`.
 - Use `component-` for islands/modules, `area-` for districts, and `file-` for selected buildings. Use validated `path-change-*` learning-path IDs for conceptual change review; derive quests from existing `path-*` and `check-*` IDs instead of minting parallel IDs.
 - Never renumber. Never re-slug because a title changed. Never regenerate ids in a rewrite.
-- Rewording a title, hook, or explanation must not change its `id`.
+- Rewording a title, hook, or explanation must not change its `id`. Its changed content hash should lead the reader back to the same stable item.
 - **Split**: the larger successor keeps the original `id`; the other gets a new one.
 - **Merge**: keep the more substantial item's `id` and list the other under `mergedFrom` so the store transfers progress once, then leaves it alone.
 - **Removed**: mark `changed.state = "removed"` and keep the item for one update cycle, so the reader learns the subject went away. Drop it on the following update; the orphaned store entry is harmless.

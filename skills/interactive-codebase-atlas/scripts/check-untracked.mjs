@@ -19,7 +19,7 @@ if (!repoArg || !atlasArg) {
 
 function git(cwd, ...cmd) {
   try {
-    return execFileSync('git', cmd, {
+    return execFileSync('git', ['-c', `safe.directory=${cwd}`, ...cmd], {
       cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
       maxBuffer: 32 * 1024 * 1024,
     }).trim();

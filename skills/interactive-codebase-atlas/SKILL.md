@@ -1,6 +1,7 @@
 ---
 name: interactive-codebase-atlas
 description: Explicitly-invoked only. Create, update, audit, or explain an interactive, animated, ADHD-friendly browser-based "Codebase Atlas" that teaches how any repository works. Invoke only when the user explicitly names this skill or its slash command.
+disable-model-invocation: true
 ---
 
 # Interactive Codebase Atlas
@@ -66,7 +67,9 @@ repository world → island/module → area/district → file/building
 
 ## Required experience
 
-Provide repository-supported surfaces for **Overview, World Map, Recent Changes, Guided Tours, Search, Bookmarks, Quests, Glossary, and Settings**. Keep the deeper architecture, workflows, explorer, data, communication, auth, subsystems, delivery, and change-playbook content defined in `references/sections.md`.
+Provide repository-supported surfaces for **Overview, World Map, Reading Order, Recent Changes, Guided Tours, Search, Bookmarks, Quests, Glossary, and Settings**. Keep the deeper architecture, workflows, explorer, data, communication, auth, subsystems, delivery, and change-playbook content defined in `references/sections.md`.
+
+**Reading Order** answers the question the rest of the atlas does not: *which files do I actually open, and in what order?* It is a directed acyclic graph of the load-bearing files, laid out so every node is explained by the ones before it — an edge means "this file assumes you have read that one". Each node carries what the file is, the one idea to look for in it, and how to check the reader got it. Nodes are marked read **on the graph itself**, never only in a detail panel. Prerequisites are hints, never locks. The guided tour is an ordered route through the *atlas*; this is an ordered route through the *code*. Author both when the repository supports them.
 
 On every screen:
 

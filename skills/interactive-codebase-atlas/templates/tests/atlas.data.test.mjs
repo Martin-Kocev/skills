@@ -28,6 +28,7 @@ function everyItem() {
   }
   for (const item of atlas.explorer?.groups ?? []) out.push({ item, key: 'areas' });
   for (const item of atlas.explorer?.files ?? []) out.push({ item, key: 'files' });
+  for (const item of atlas.readingOrder?.nodes ?? []) out.push({ item, key: 'readingOrder' });
   for (const key of ['auth', 'delivery']) if (atlas[key]) out.push({ item: atlas[key], key });
   return out;
 }
@@ -107,6 +108,13 @@ test('knowledge checks have one answer and always explain it', () => {
   }
 });
 
+test('every workflow ends with a knowledge check', () => {
+  const checked = new Set((atlas.knowledgeChecks ?? []).map((check) => check.attachedTo));
+  for (const workflow of atlas.workflows ?? []) {
+    assert.ok(checked.has(workflow.id), `${workflow.id}: no end-of-workflow knowledge check`);
+  }
+});
+
 test('code excerpts stay short', () => {
   for (const w of atlas.workflows ?? []) {
     for (const s of w.steps ?? []) {
@@ -142,6 +150,62 @@ test('the file:// bundle matches both sources of truth', () => {
     'bundled ui.json is stale — run validate-atlas.mjs');
 });
 
+/* ----------------------------------------------------- the reading order -- */
+
+/* The graph is drawn from authored order alone: stage index is the row, index
+   inside the stage is the column. That layout is only *correct* if every
+   dependency points backwards through that same order — which is also what
+   makes the graph acyclic and what makes the list view (stage by stage, in
+   order) an honest alternative to the picture rather than a different claim. */
+test('the reading order is a forward-only DAG', () => {
+  const reading = atlas.readingOrder;
+  if (!reading) return;
+  const stageAt = new Map((reading.stages ?? []).map((s, i) => [s.id, i]));
+  const rank = new Map();
+  const perStage = new Map();
+  for (const node of reading.nodes ?? []) {
+    assert.ok(stageAt.has(node.stage), `${node.id}: unknown stage ${node.stage}`);
+    const within = perStage.get(node.stage) ?? 0;
+    perStage.set(node.stage, within + 1);
+    rank.set(node.id, [stageAt.get(node.stage), within]);
+  }
+  for (const node of reading.nodes ?? []) {
+    const [ms, mi] = rank.get(node.id);
+    for (const dep of node.dependsOn ?? []) {
+      assert.ok(rank.has(dep), `${node.id}: dependsOn unknown node ${dep}`);
+      const [ds, di] = rank.get(dep);
+      assert.ok(ds < ms || (ds === ms && di < mi),
+        `${node.id}: dependsOn ${dep}, which is not earlier in the reading order`);
+    }
+  }
+});
+
+test('every reading-order node says what it is, what to look for, and how to check', () => {
+  for (const node of atlas.readingOrder?.nodes ?? []) {
+    for (const key of ['title', 'path', 'what', 'lookFor', 'validate']) {
+      assert.ok(node[key]?.trim(), `${node.id}: ${key} is empty`);
+    }
+    assert.ok((node.sources ?? []).length > 0, `${node.id}: no sources`);
+  }
+});
+
+/* Reading-order nodes are progress items, so they must stay out of the section
+   meter's denominator — folding "files read" into "sections understood" would
+   silently move every existing reader's percentage. */
+test('reading-order nodes are not counted as atlas sections', () => {
+  const TRACKED = ['components', 'workflows', 'entities', 'channels', 'subsystems', 'changePlaybooks'];
+  const tracked = new Set();
+  for (const kind of TRACKED) for (const item of atlas[kind] ?? []) tracked.add(item.id);
+  for (const key of ['auth', 'delivery']) if (atlas[key]?.id) tracked.add(atlas[key].id);
+  for (const node of atlas.readingOrder?.nodes ?? []) {
+    assert.ok(!tracked.has(node.id), `${node.id} is counted twice`);
+  }
+  const src = readFileSync(path.join(root, 'assets', 'atlas.js'), 'utf8');
+  const fn = src.slice(src.indexOf('function trackedIds()'));
+  assert.ok(!fn.slice(0, fn.indexOf('\n  }')).includes('readingOrder'),
+    'trackedIds() counts reading-order nodes — the section meter would jump');
+});
+
 /* ------------------------------------------------------- the UI template -- */
 
 /* data/ui.json is the whole interface's copy and layout. atlas.js reads it by
@@ -155,7 +219,7 @@ test('ui.json defines the chrome, every view, and their empty states', () => {
   }
   for (const view of ['home', 'architecture', 'workflows', 'simulator', 'explorer', 'data',
     'communication', 'auth', 'subsystems', 'delivery', 'change', 'glossary', 'questions',
-    'progress', 'changed', 'notFound']) {
+    'progress', 'changed', 'readingOrder', 'notFound']) {
     assert.ok(ui.views[view], `ui.json has no view "${view}"`);
   }
 });

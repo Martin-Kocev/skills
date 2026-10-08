@@ -1,4 +1,7 @@
 interface:
   display_name: "Orchestrator"
-  short_description: "Coordinate subagents and verify their work"
+  short_description: "Coordinate Codex and Claude subagents and verify their work"
   default_prompt: "Use $orchestrator to coordinate this task across specialized subagents and independently verify the integrated result."
+
+policy:
+  allow_implicit_invocation: false

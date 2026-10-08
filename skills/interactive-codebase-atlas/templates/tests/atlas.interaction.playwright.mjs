@@ -68,6 +68,79 @@ test('a workflow steps forward and backward', async ({ page }) => {
   await expect(page.locator('.sim__counter')).toContainText('Step 1 of');
 });
 
+test('workflow playback is visible and disclosure controls never fail silently', async ({ page }) => {
+  const workflow = ATLAS.workflows[0];
+  const firstStep = workflow.steps[0];
+  await page.goto(BASE + '/index.html#/workflows/' + workflow.id + '/0');
+
+  for (const [kind, available] of [
+    ['code', Boolean(firstStep.excerpt?.code)],
+    ['failure', Boolean(firstStep.failure)],
+    ['tests', Boolean(firstStep.test)],
+  ]) {
+    const control = page.locator(`[data-sim-control="${kind}"]`);
+    await expect(control).toBeVisible();
+    if (!available) {
+      await expect(control).toBeDisabled();
+      await expect(control).toContainText(/No |unavailable/i);
+      continue;
+    }
+    await expect(control).toBeEnabled();
+    await control.click();
+    const revealed = kind === 'code' ? page.locator('.sim__step .excerpt')
+      : kind === 'failure' ? page.locator('.sim__step .notice')
+        : page.locator('.sim__step .srcs');
+    await expect(revealed).toBeVisible();
+  }
+
+  await page.locator('[data-sim-control="play"]').click();
+  await expect(page.locator('[data-sim-control="play"]')).toContainText('Pause');
+  await expect(page.locator('.sim__playback')).toBeVisible();
+  await expect(page.locator('.sim__play-track')).toHaveAttribute('role', 'progressbar');
+  await page.locator('[data-sim-control="play"]').click();
+
+  await page.goto(BASE + '/index.html#/workflows/' + workflow.id + '/1');
+  await page.locator('[data-sim-control="replay"]').click();
+  await expect(page.locator('.sim__counter')).toContainText('Step 1 of');
+  await expect(page.locator('[data-sim-control="play"]')).toContainText('Pause');
+  await expect(page.locator('.sim__playback')).toBeVisible();
+});
+
+test('a changed workflow step stays marked for its first revisit and links to the exact step', async ({ page }) => {
+  const workflow = ATLAS.workflows.find((candidate) => candidate.steps?.length > 1);
+  test.skip(!workflow, 'atlas has no multi-step workflow');
+  const stepIndex = 1;
+  const step = workflow.steps[stepIndex];
+  const at = '2026-08-01T00:00:00.000Z';
+  await fetch(BASE + '/api/progress?mode=replace', {
+    method: 'PUT', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      storeVersion: 1,
+      items: {
+        [step.id]: {
+          state: 'completed', bookmarked: true, unclear: false,
+          firstOpenedAt: at, lastOpenedAt: at, completedAt: at,
+          seenHash: 'an-older-content-hash', openCount: 2, updatedAt: at,
+        },
+      },
+    }),
+  });
+
+  await page.goto(BASE + '/index.html#/progress?filter=changed');
+  const row = page.locator('.checklist li', { hasText: step.title });
+  await expect(row).toBeVisible();
+  await row.getByRole('link', { name: step.title }).click();
+  await expect(page).toHaveURL(new RegExp(`#/workflows/${workflow.id}/${stepIndex}$`));
+  await expect(page.locator('.sim__counter')).toContainText(`Step ${stepIndex + 1} of`);
+  await expect(page.locator('.sim__step .badge--updated')).toBeVisible();
+
+  const stored = await fetch(BASE + '/api/progress').then((response) => response.json());
+  expect(stored.items[step.id].state).toBe('completed');
+  expect(stored.items[step.id].bookmarked).toBe(true);
+  await page.reload();
+  await expect(page.locator('.sim__step .badge--updated')).toHaveCount(0);
+});
+
 test('workflow arrival motion settles to crisp readable content', async ({ page }) => {
   await page.goto(BASE + '/index.html#/workflows');
   await page.locator('.path-card').first().click();
@@ -390,4 +463,145 @@ test('a browser that already had progress hands it to the file on first served v
   expect(stored.items[FIRST_SUBSYSTEM.id]?.state).toBe('completed');
   expect(stored.items[FIRST_SUBSYSTEM.id]?.bookmarked).toBe(true);
   await ctx.close();
+});
+
+/* ------------------------------------------------------- the reading order */
+
+/**
+ * Put the loaded page in front of an empty store — both halves of it.
+ *
+ * Clearing the disk file alone is not enough and fails in a way that looks like
+ * a bug in the atlas: `AtlasProgress.hydrate` treats an item-less server
+ * document as "no progress yet" and adopts whatever the browser mirror holds,
+ * then pushes that back up. That adopt path is deliberate (it is how a reader
+ * who starts serving an atlas keeps the history they built over `file://`), so
+ * a test that wants a fresh reader has to clear localStorage too — and then
+ * reload, because these navigations differ only by fragment and never re-run
+ * hydrate at all.
+ */
+async function freshReader(page) {
+  await fetch(BASE + '/api/progress?mode=replace', {
+    method: 'PUT', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ storeVersion: 1, items: {} }),
+  }).catch(() => { /* static host: localStorage is the whole store */ });
+  await page.evaluate(() => { try { localStorage.clear(); } catch { /* private mode */ } });
+  await page.reload();
+}
+
+test('the reading-order graph draws every node and every dependency edge', async ({ page }) => {
+  const reading = ATLAS.readingOrder;
+  test.skip(!reading?.nodes?.length, 'atlas has no reading order');
+
+  await page.goto(BASE + '/index.html#/reading-order');
+  await expect(page.locator('.dag-canvas .dag-node')).toHaveCount(reading.nodes.length);
+  await expect(page.locator('.dag-band')).toHaveCount(reading.stages.length);
+
+  const edges = reading.nodes.reduce((n, node) => n + (node.dependsOn?.length ?? 0), 0);
+  await expect(page.locator('.dag-edges .dag-edge')).toHaveCount(edges);
+
+  /* The canvas is wider than the panel and owns its own scroller; the document
+     must never scroll sideways. Checked at phone width too, where the page
+     falls back to the stacked list — the grid item's default `min-width: auto`
+     let a node's nowrap path line push the document 137px wide there while the
+     desktop graph was perfectly contained. */
+  for (const size of [{ width: 1400, height: 900 }, { width: 390, height: 780 }]) {
+    await page.setViewportSize(size);
+    await page.reload();
+    const overflow = await page.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, `horizontal overflow at ${size.width}px`).toBeLessThanOrEqual(1);
+  }
+});
+
+test('marking a node read on the graph persists and readies what depends on it', async ({ page }) => {
+  const reading = ATLAS.readingOrder;
+  test.skip(!reading?.nodes?.length, 'atlas has no reading order');
+  const root = reading.nodes.find((node) => !(node.dependsOn ?? []).length);
+  const next = reading.nodes.find((node) => (node.dependsOn ?? []).length === 1
+    && node.dependsOn[0] === root.id);
+  test.skip(!next, 'no single-prerequisite successor to assert on');
+
+  await page.goto(BASE + '/index.html#/reading-order');
+  await freshReader(page);
+  const rootNode = page.locator('.dag-canvas .dag-node').filter({ hasText: root.title }).first();
+  const nextNode = page.locator('.dag-canvas .dag-node').filter({ hasText: next.title }).first();
+  await expect(nextNode).toHaveAttribute('data-state', 'later');
+
+  // The control on the node itself — marking a node complete must not require
+  // opening it first, which is the point of the page.
+  await rootNode.locator('.dag-node__check').click();
+  await expect(rootNode).toHaveAttribute('data-state', 'done');
+  await expect(nextNode).toHaveAttribute('data-state', 'ready');
+
+  // The push to disk is debounced (assets/progress.js), so poll rather than
+  // asserting on the first read — a bare fetch here races the save, not the UI.
+  await expect.poll(async () => {
+    const stored = await fetch(BASE + '/api/progress').then((r) => r.json()).catch(() => null);
+    return stored?.items?.[root.id]?.state ?? null;
+  }, { timeout: 5000 }).toBe('completed');
+
+  await page.reload();
+  await expect(page.locator('.dag-canvas .dag-node').filter({ hasText: root.title }).first())
+    .toHaveAttribute('data-state', 'done');
+
+  // Completion is never a lock: reopening it is one press away.
+  await page.locator('.dag-canvas .dag-node').filter({ hasText: root.title }).first()
+    .locator('.dag-node__check').click();
+  await expect(page.locator('.dag-canvas .dag-node').filter({ hasText: root.title }).first())
+    .toHaveAttribute('data-state', 'ready');
+});
+
+test('the stage list is the graph, not a summary of it', async ({ page }) => {
+  const reading = ATLAS.readingOrder;
+  test.skip(!reading?.nodes?.length, 'atlas has no reading order');
+
+  await page.goto(BASE + '/index.html#/reading-order');
+  await page.getByRole('button', { name: 'By stage' }).click();
+  await expect(page.locator('.dag-list .dag-node')).toHaveCount(reading.nodes.length);
+  await expect(page.locator('.dag-canvas')).toHaveCount(0);
+
+  // Every node is reachable by keyboard with a real name, in reading order.
+  const first = page.locator('.dag-list .dag-node__open').first();
+  await first.focus();
+  await expect(first).toBeFocused();
+  await first.press('Enter');
+  await expect(page.locator('.dag-detail h3')).toBeVisible();
+});
+
+test('a reading-order node explains itself and links back into the atlas', async ({ page }) => {
+  const reading = ATLAS.readingOrder;
+  test.skip(!reading?.nodes?.length, 'atlas has no reading order');
+  const node = reading.nodes.find((candidate) => (candidate.dependsOn ?? []).length > 0);
+
+  await page.goto(BASE + '/index.html#/reading-order/' + node.id);
+  const detail = page.locator('.dag-detail');
+  await expect(detail.locator('h3')).toHaveText(node.title);
+  await expect(detail).toContainText(node.path);
+  // What it is / what to look for / how to check — the three the page promises.
+  await expect(detail.locator('dd')).toHaveCount(4);
+  await expect(detail.locator('.dag-detail__rel').first()).toContainText(
+    reading.nodes.find((n) => n.id === node.dependsOn[0]).title);
+});
+
+test('reading the files does not move the section-progress meter', async ({ page }) => {
+  const reading = ATLAS.readingOrder;
+  test.skip(!reading?.nodes?.length, 'atlas has no reading order');
+
+  await page.goto(BASE + '/index.html#/reading-order');
+  await page.reload();   // fragment-only navigation never re-runs hydrate
+
+  /* Asserted relatively, not against an empty store. A previous test's page can
+     still be flushing its own progress with `keepalive` while this one starts,
+     so "the count goes up by exactly one" is a property that holds whatever it
+     started at — and it is the property under test anyway. */
+  const filesMeter = page.locator('.dag-head__meter .meter-label');
+  const railMeter = page.locator('.rail__progress .meter-label');
+  const railBefore = await railMeter.textContent();
+  const before = Number((await filesMeter.textContent()).match(/^(\d+)/)[1]);
+
+  const unread = page.locator('.dag-canvas .dag-node:not([data-state="done"])').first();
+  await unread.locator('.dag-node__check').click();
+  await expect(filesMeter).toHaveText(new RegExp('^' + (before + 1) + ' of '));
+  // The files meter moves; the sections meter in the rail does not.
+  await expect(railMeter).toHaveText(railBefore);
 });

@@ -61,6 +61,10 @@ Look specifically for:
 - Test additions or deletions covering documented behavior
 - Documentation changes that resolve or create a conflict with implementation
 - Relationship changes that add, remove, redirect, or reclassify world-map routes
+- Files that entered or left the reading order: a new load-bearing file needs a node and an
+  honest `dependsOn`, and a deleted one has to be removed rather than left pointing at nothing.
+  Re-check the `validate` line of every node whose file changed — a named test that was renamed
+  or deleted turns the page's promise into a dead end.
 
 ### 7. Re-read changed files and their neighbourhood
 

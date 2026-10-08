@@ -72,6 +72,15 @@
       byId[item.id] = { item: item, kind: 'files' };
       if (item.contentHash) hashes[item.id] = item.contentHash;
     });
+    /* Reading-order nodes are tracked items like any other: same ids, same
+       progress store, same search index. They stay out of `trackedIds` because
+       "files read" and "sections understood" are two different denominators —
+       folding them together would silently halve every existing reader's
+       percentage the day this collection landed. */
+    (A.readingOrder && A.readingOrder.nodes || []).forEach(function (item) {
+      byId[item.id] = { item: item, kind: 'readingOrder' };
+      if (item.contentHash) hashes[item.id] = item.contentHash;
+    });
   }
 
   /** Ids that count toward overall progress: the things a reader "works through". */
@@ -81,6 +90,16 @@
       (A[k] || []).forEach(function (i) { out.push(i.id); });
     });
     ['auth', 'delivery'].forEach(function (k) { if (A[k] && A[k].id) out.push(A[k].id); });
+    return out;
+  }
+
+  /** Changed-item review includes workflow steps without adding them to the
+      overall completion denominator. */
+  function changeReviewIds() {
+    var out = trackedIds();
+    (A.workflows || []).forEach(function (workflow) {
+      (workflow.steps || []).forEach(function (step) { out.push(step.id); });
+    });
     return out;
   }
 
@@ -113,6 +132,9 @@
     entityKind: function (e) {
       return (e.dataClass || '') + (e.persistence ? ' · ' + e.persistence : '');
     },
+    entityLifecycle: function (e) {
+      return e.lifecycleText || (e.lifecycle || []).join(' → ');
+    },
     stepSource: function (s) {
       return s.source ? s.source.path + (s.source.symbol ? ' → ' + s.source.symbol : '') : '';
     }
@@ -123,7 +145,7 @@
 
   /* -------------------------------------------------------- fragments ---- */
 
-  function badges(item) {
+  function badges(item, updatedOverride) {
     var kids = [];
     if (item.confidence) {
       kids.push(h('span', {
@@ -138,7 +160,7 @@
         item.changed.commit ? h('code', { class: 'hash', text: item.changed.commit }) : null
       ]));
     }
-    if (P.isUpdatedSinceSeen(item.id, hashes[item.id])) {
+    if (updatedOverride === true || (updatedOverride !== false && P.isUpdatedSinceSeen(item.id, hashes[item.id]))) {
       kids.push(h('span', { class: 'badge badge--updated', text: T('badges.updatedSinceSeen') }));
     }
     return kids.length ? h('div', { class: 'badge-row' }, kids) : null;
@@ -423,6 +445,7 @@
     }).join(' ');
     return (titleOf(i) + ' ' + (i.hook || '') + ' ' + (i.responsibility || '') + ' ' +
       (i.plain || '') + ' ' + (i.short || '') + ' ' + (i.blurb || '') + ' ' +
+      (i.path || '') + ' ' + (i.what || '') + ' ' + (i.lookFor || '') + ' ' +
       depthOfSafe(i) + ' ' + sourceText).toLowerCase();
   }
 
@@ -571,6 +594,10 @@
   function pathMeta(p, summary) {
     var base = 'views.home.pathMeta.';
     if (p.kind === 'explore' || p.kind === 'continue' || p.kind === 'what-changed') return T(base + p.kind);
+    if (p.kind === 'reading-order') {
+      var read = P.summary(readingNodes().map(function (n) { return n.id; }));
+      return T(base + 'reading-order', { count: read.total - read.completed });
+    }
     if (p.kind === 'review-unfinished') {
       var open = summary.total - summary.completed;
       return T(base + 'review-unfinished', { count: summary.bookmarked + summary.unclear + open });
@@ -586,6 +613,7 @@
 
   function startPath(p) {
     if (p.kind === 'explore') return go('#/architecture');
+    if (p.kind === 'reading-order') return go('#/reading-order');
     if (p.kind === 'what-changed') return go('#/changed');
     if (p.kind === 'review-unfinished') return go('#/progress?filter=unfinished');
     if (p.kind === 'continue') {
@@ -735,6 +763,10 @@
 
   var simState = { showCode: false, showFailure: false, showTests: false };
 
+  function playbackDelay() {
+    return reduced.matches ? UI.get('theme.playIntervalReducedMs', 1200) : UI.get('theme.playIntervalMs', 3400);
+  }
+
   function viewSimulator(wfId, stepIndex) {
     var wf = byId[wfId] && byId[wfId].item;
     if (!wf) return notFound();
@@ -742,6 +774,9 @@
     var i = Math.max(0, Math.min(stepIndex || 0, steps.length - 1));
     var step = steps[i];
     var c = 'views.simulator.controls.';
+    // Capture before open() records the current hash: the changed badge remains
+    // visible for the first revisit, then clears on the following visit.
+    var stepWasUpdated = P.isUpdatedSinceSeen(step.id, hashes[step.id]);
     P.open(wf.id, hashes[wf.id]);
     P.open(step.id, hashes[step.id]);
     P.setLocation(wf.id, step.id);
@@ -754,10 +789,23 @@
       }, [h('span', { class: 'layer', text: s.layer || '' }), txt(s.title)])]);
     }));
 
+    var playback = playTimer ? h('div', { class: 'sim__playback', role: 'status', 'aria-live': 'polite' }, [
+      h('div', { class: 'sim__playback-copy' }, [
+        h('strong', { text: T('views.simulator.playback.label') }),
+        h('span', { text: T('views.simulator.playback.next') })
+      ]),
+      h('div', {
+        class: 'sim__play-track', role: 'progressbar',
+        'aria-label': T('views.simulator.playback.progressLabel'),
+        'aria-valuemin': '0', 'aria-valuemax': '100',
+      }, [h('span', { class: 'sim__play-fill', style: '--play-delay:' + playbackDelay() + 'ms' })])
+    ]) : null;
+
     var stage = h('div', { class: 'sim__stage' }, [
+      playback,
       h('div', { class: 'sim__step' }, [
         h('span', { class: 'sim__counter', text: T('views.simulator.counter', { n: i + 1, total: steps.length }) }),
-        badges(step),
+        badges(step, stepWasUpdated),
         h('h3', { class: 'sim__title', text: step.title }),
         prose(step.plain, { class: 'depth-body' }),
         kv(step, 'simulator'),
@@ -780,17 +828,23 @@
         stopPlay();
         if (i === steps.length - 1) go('#/workflows'); else go('#/workflows/' + wf.id + '/' + (i + 1));
       } }, [txt(T(c + (i === steps.length - 1 ? 'finish' : 'next'))), icon('arrowRight')]),
-      h('button', { class: 'control', onclick: function () { togglePlay(wf, i); } },
+      h('button', { class: 'control', 'data-sim-control': 'play', onclick: function () { togglePlay(wf, i); } },
         [icon(playTimer ? 'pause' : 'play'), txt(T(c + (playTimer ? 'pause' : 'play')))]),
-      h('button', { class: 'control', onclick: function () { stopPlay(); go('#/workflows/' + wf.id + '/0'); } },
+      h('button', { class: 'control', 'data-sim-control': 'replay', onclick: function () { replayWorkflow(wf); } },
         [icon('replay'), txt(T(c + 'replay'))]),
       h('button', { class: 'control', onclick: function () { stopPlay(); go('#/architecture' + (step.componentId ? '/' + step.componentId : '')); } },
         [icon('map'), txt(T(c + 'bigPicture'))]),
-      h('button', { class: 'control', 'aria-pressed': String(simState.showCode), text: T(c + (simState.showCode ? 'hideCode' : 'showCode')),
+      h('button', { class: 'control', 'data-sim-control': 'code', disabled: !step.excerpt,
+        'aria-pressed': String(!!step.excerpt && simState.showCode),
+        text: step.excerpt ? T(c + (simState.showCode ? 'hideCode' : 'showCode')) : T('views.simulator.unavailable.code'),
         onclick: function () { simState.showCode = !simState.showCode; render(); } }),
-      h('button', { class: 'control', 'aria-pressed': String(simState.showFailure), text: T(c + (simState.showFailure ? 'hideFailure' : 'showFailure')),
+      h('button', { class: 'control', 'data-sim-control': 'failure', disabled: !step.failure,
+        'aria-pressed': String(!!step.failure && simState.showFailure),
+        text: step.failure ? T(c + (simState.showFailure ? 'hideFailure' : 'showFailure')) : T('views.simulator.unavailable.failure'),
         onclick: function () { simState.showFailure = !simState.showFailure; render(); } }),
-      h('button', { class: 'control', 'aria-pressed': String(simState.showTests), text: T(c + (simState.showTests ? 'hideTests' : 'showTests')),
+      h('button', { class: 'control', 'data-sim-control': 'tests', disabled: !step.test,
+        'aria-pressed': String(!!step.test && simState.showTests),
+        text: step.test ? T(c + (simState.showTests ? 'hideTests' : 'showTests')) : T('views.simulator.unavailable.tests'),
         onclick: function () { simState.showTests = !simState.showTests; render(); } }),
       h('button', { class: 'control', text: T(c + (P.pref('depthPreference') === 'simple' ? 'explainMore' : 'explainLess')), onclick: function () {
         var order = ['simple', 'balanced', 'deep'];
@@ -820,15 +874,24 @@
 
   function togglePlay(wf, i) {
     if (playTimer) return stopPlay(), render();
+    if (i >= (wf.steps || []).length - 1) return replayWorkflow(wf);
+    startPlay(wf, i);
+  }
+  function startPlay(wf, i) {
     var steps = wf.steps || [];
     var idx = i;
-    var delay = reduced.matches ? UI.get('theme.playIntervalReducedMs', 1200) : UI.get('theme.playIntervalMs', 3400);
     playTimer = setInterval(function () {
       idx += 1;
       if (idx >= steps.length) return stopPlay(), render();
       go('#/workflows/' + wf.id + '/' + idx);
-    }, delay);
+      if (idx >= steps.length - 1) stopPlay();
+    }, playbackDelay());
     render();
+  }
+  function replayWorkflow(wf) {
+    stopPlay();
+    go('#/workflows/' + wf.id + '/0');
+    startPlay(wf, 0);
   }
   function stopPlay() { if (playTimer) { clearInterval(playTimer); playTimer = null; } }
 
@@ -1407,7 +1470,7 @@
   function viewProgress(options) {
     options = options || {};
     var filter = options.filter || parseRoute().query.filter || 'all';
-    var ids = P.filter(trackedIds(), filter, hashes);
+    var ids = P.filter(filter === 'changed' ? changeReviewIds() : trackedIds(), filter, hashes);
     var s = P.summary(trackedIds());
     return h('div', {}, [
       UI.sectionHead(options.viewKey || 'progress'),
@@ -1545,6 +1608,254 @@
     ]);
   }
 
+  /* ------------------------------------------- reading order (the DAG) --- */
+
+  /* Geometry, in CSS pixels. Deterministic: a node's position is a pure
+     function of its authored stage and its authored index inside that stage,
+     so the graph is identical on every render and on every machine — the same
+     promise the world map's island coordinates make. */
+  var DAG = { nodeW: 210, nodeH: 72, gapX: 22, labelH: 28, rowGap: 58 };
+
+  function readingNodes() { return (A.readingOrder && A.readingOrder.nodes) || []; }
+  function readingStages() { return (A.readingOrder && A.readingOrder.stages) || []; }
+
+  function readingLayout() {
+    var nodes = readingNodes();
+    var rows = readingStages().map(function (stage) {
+      return { stage: stage, nodes: nodes.filter(function (n) { return n.stage === stage.id; }) };
+    });
+    var cols = rows.reduce(function (m, r) { return Math.max(m, r.nodes.length); }, 1);
+    var width = cols * (DAG.nodeW + DAG.gapX) - DAG.gapX;
+    var rowH = DAG.labelH + DAG.nodeH + DAG.rowGap;
+    var pos = {};
+    rows.forEach(function (row, ri) {
+      var span = row.nodes.length * DAG.nodeW + (row.nodes.length - 1) * DAG.gapX;
+      var left = Math.round((width - span) / 2);
+      row.nodes.forEach(function (node, ci) {
+        pos[node.id] = { x: left + ci * (DAG.nodeW + DAG.gapX), y: ri * rowH + DAG.labelH, row: ri, col: ci };
+      });
+    });
+    return { rows: rows, pos: pos, width: width, height: rows.length * rowH - DAG.rowGap + 6, rowH: rowH };
+  }
+
+  /**
+   * `done` when the reader marked it read; `ready` when every prerequisite is
+   * read; `later` otherwise. `later` is a hint about reading economy, never a
+   * lock — every node stays open, which is the same rule quests follow.
+   */
+  function readingState(node) {
+    if (P.state(node.id) === 'completed') return 'done';
+    return (node.dependsOn || []).every(function (d) { return P.state(d) === 'completed'; }) ? 'ready' : 'later';
+  }
+
+  function readingDependents(id) {
+    return readingNodes().filter(function (n) { return (n.dependsOn || []).indexOf(id) !== -1; });
+  }
+
+  /* Cross-stage edges fall from one row to the next; a same-stage edge arcs
+     under the row instead, because a straight line between two boxes sitting
+     side by side would be hidden behind them. */
+  function dagEdgePath(from, to) {
+    if (from.row === to.row) {
+      var sx = from.x + DAG.nodeW, sy = from.y + DAG.nodeH / 2;
+      var tx = to.x, ty = to.y + DAG.nodeH / 2;
+      var dip = Math.max(18, (tx - sx) / 3);
+      return 'M' + sx + ' ' + sy + ' C' + (sx + dip) + ' ' + (sy + dip) +
+             ' ' + (tx - dip) + ' ' + (ty + dip) + ' ' + tx + ' ' + ty;
+    }
+    var ax = from.x + DAG.nodeW / 2, ay = from.y + DAG.nodeH;
+    var bx = to.x + DAG.nodeW / 2, by = to.y;
+    var mid = ay + (by - ay) * 0.55;
+    return 'M' + ax + ' ' + ay + ' C' + ax + ' ' + mid + ' ' + bx + ' ' + (by - (by - ay) * 0.45) + ' ' + bx + ' ' + by;
+  }
+
+  function readingStateLabel(s) { return T('views.readingOrder.stateLabels.' + s); }
+  function readingStateIcon(s) { return UI.get('views.readingOrder.stateIcons.' + s, 'circle'); }
+
+  /**
+   * One node. Two controls on purpose: the body opens its notes, the round
+   * button marks it read without leaving the graph — "mark the node itself"
+   * is the whole point of the page.
+   */
+  function readingNode(node, selectedId, positioned) {
+    var layout = positioned;
+    var state = readingState(node);
+    var stage = readingStages().filter(function (s) { return s.id === node.stage; })[0];
+    var siblings = readingNodes().filter(function (n) { return n.stage === node.stage; });
+    var index = siblings.indexOf(node) + 1;
+    var stageNumber = readingStages().indexOf(stage) + 1;
+    var read = state === 'done';
+
+    var box = h('div', {
+      class: 'dag-node',
+      'data-state': state,
+      'data-selected': String(node.id === selectedId),
+      style: layout ? 'left:' + layout.x + 'px;top:' + layout.y + 'px;width:' + DAG.nodeW + 'px;min-height:' + DAG.nodeH + 'px' : null
+    }, [
+      h('button', {
+        class: 'dag-node__open',
+        'aria-current': node.id === selectedId ? 'true' : null,
+        onclick: function () { go('#/reading-order/' + node.id); }
+      }, [
+        h('span', { class: 'dag-node__ord', text: stageNumber + '.' + index }),
+        h('span', { class: 'dag-node__name', text: node.title }),
+        h('span', { class: 'dag-node__path', text: node.path }),
+        h('span', { class: 'visually-hidden', text: T('views.readingOrder.positionLabel', {
+          stage: stage ? stage.name : node.stage, index: index, count: siblings.length }) + '. ' + readingStateLabel(state) })
+      ]),
+      h('button', {
+        class: 'dag-node__check',
+        'aria-pressed': read ? 'true' : 'false',
+        'aria-label': T(read ? 'views.readingOrder.markedRead' : 'views.readingOrder.markRead') + ': ' + node.title,
+        title: T(read ? 'views.readingOrder.markedRead' : 'views.readingOrder.markRead'),
+        onclick: function () { P.toggleComplete(node.id); render(); }
+      }, [icon(readingStateIcon(state), 17)])
+    ]);
+    return box;
+  }
+
+  function readingGraph(selectedId) {
+    var layout = readingLayout();
+    var svgNS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('class', 'dag-edges');
+    svg.setAttribute('width', layout.width);
+    svg.setAttribute('height', layout.height);
+    svg.setAttribute('viewBox', '0 0 ' + layout.width + ' ' + layout.height);
+    svg.setAttribute('aria-hidden', 'true');
+
+    readingNodes().forEach(function (node) {
+      (node.dependsOn || []).forEach(function (depId) {
+        var from = layout.pos[depId], to = layout.pos[node.id];
+        if (!from || !to) return;
+        var edge = document.createElementNS(svgNS, 'path');
+        edge.setAttribute('d', dagEdgePath(from, to));
+        var touches = selectedId === node.id || selectedId === depId;
+        /* An edge spanning several stages crosses rows it has nothing to do
+           with. Drawn at full weight, a handful of them read as a tangle over
+           the whole graph — so distance fades the line, and selecting either
+           end brings it back to full strength. */
+        var span = Math.abs(to.row - from.row);
+        edge.setAttribute('class', 'dag-edge' + (touches ? ' dag-edge--active' : '') +
+          (span > 2 ? ' dag-edge--long' : '') +
+          (P.state(depId) === 'completed' ? ' dag-edge--met' : ''));
+        svg.appendChild(edge);
+      });
+    });
+
+    var canvas = h('div', {
+      class: 'dag-canvas',
+      role: 'group',
+      'aria-label': T('views.readingOrder.graphLabel'),
+      style: 'width:' + layout.width + 'px;height:' + layout.height + 'px'
+    });
+    canvas.appendChild(svg);
+    layout.rows.forEach(function (row, ri) {
+      canvas.appendChild(h('div', {
+        class: 'dag-band',
+        style: 'top:' + (ri * layout.rowH) + 'px;width:' + layout.width + 'px'
+      }, [
+        h('span', { class: 'dag-band__n', text: String(ri + 1) }),
+        h('span', { class: 'dag-band__name', text: row.stage.name })
+      ]));
+      row.nodes.forEach(function (node) {
+        canvas.appendChild(readingNode(node, selectedId, layout.pos[node.id]));
+      });
+    });
+    return h('div', { class: 'dag-scroll' }, [canvas]);
+  }
+
+  function readingList(selectedId) {
+    return h('div', { class: 'dag-list' }, readingStages().map(function (stage, ri) {
+      var nodes = readingNodes().filter(function (n) { return n.stage === stage.id; });
+      return h('section', { class: 'dag-list__stage' }, [
+        h('h3', {}, [h('span', { class: 'dag-band__n', text: String(ri + 1) }), txt(' ' + stage.name)]),
+        h('p', { class: 'dag-list__what', text: stage.what || '' }),
+        h('div', { class: 'dag-list__nodes' }, nodes.map(function (node) {
+          return readingNode(node, selectedId, null);
+        }))
+      ]);
+    }));
+  }
+
+  function readingDetail(node) {
+    if (!node) return UI.empty('views.readingOrder.detailEmpty');
+    P.open(node.id, hashes[node.id]);
+    P.setLocation(node.id);
+    var stage = readingStages().filter(function (s) { return s.id === node.stage; })[0];
+    var deps = (node.dependsOn || []).map(function (id) { return byId[id] && byId[id].item; }).filter(Boolean);
+    var unlocks = readingDependents(node.id);
+    var related = [node.fileId, node.componentId].filter(function (id) { return id && byId[id]; });
+
+    function linkRow(label, list, emptyKey) {
+      return h('p', { class: 'dag-detail__rel' }, [
+        h('strong', { text: T(label) }),
+        list.length ? frag(list.map(function (item, i) {
+          return frag([i ? txt(' · ') : null, h('a', { href: linkFor(item.id), text: item.title || titleOf(item) })]);
+        })) : h('span', { class: 'muted', text: T(emptyKey) })
+      ]);
+    }
+
+    return h('div', { class: 'card dag-detail' }, [
+      badges(node),
+      h('h3', { text: node.title }),
+      h('p', { class: 'mono dag-detail__path', text: node.path }),
+      h('dl', { class: 'kv kv--stacked' }, [
+        h('dt', { text: T('views.readingOrder.stageLabel') }),
+        h('dd', { text: stage ? stage.name : node.stage }),
+        h('dt', { text: T('views.readingOrder.whatLead') }),
+        h('dd', {}, [prose(node.what || '')]),
+        h('dt', { text: T('views.readingOrder.lookForLead') }),
+        h('dd', {}, [prose(node.lookFor || '')]),
+        h('dt', { text: T('views.readingOrder.validateLead') }),
+        h('dd', {}, [prose(node.validate || '')])
+      ]),
+      linkRow('views.readingOrder.dependsLead', deps, 'views.readingOrder.noDeps'),
+      linkRow('views.readingOrder.unlocksLead', unlocks, 'views.readingOrder.noUnlocks'),
+      related.length ? h('p', { class: 'dag-detail__rel' }, [
+        h('strong', { text: T('views.readingOrder.relatedLead') }),
+        frag(related.map(function (id, i) {
+          return frag([i ? txt(' · ') : null, h('a', { href: linkFor(id), text: labelOf(id) })]);
+        }))
+      ]) : null,
+      sources(node.sources),
+      itemActions(node.id)
+    ]);
+  }
+
+  function viewReadingOrder(selectedId) {
+    if (!A.readingOrder || !readingNodes().length) return UI.empty('views.readingOrder.empty');
+    var nodes = readingNodes();
+    var ids = nodes.map(function (n) { return n.id; });
+    var summary = P.summary(ids);
+    var selected = selectedId && byId[selectedId] && byId[selectedId].kind === 'readingOrder'
+      ? byId[selectedId].item : null;
+    var mode = P.pref('readingOrderView') || (mobileLayout.matches ? 'list' : 'graph');
+    var next = nodes.filter(function (n) { return readingState(n) === 'ready'; })[0];
+
+    var out = h('div', {}, [
+      UI.sectionHead('readingOrder'),
+      A.readingOrder.hook ? prose(A.readingOrder.hook, { class: 'hook' }) : null,
+      h('div', { class: 'dag-head' }, [
+        h('div', { class: 'dag-head__meter' }, [
+          h('div', { class: 'meter' }, [h('i', { style: 'width:' + summary.percent + '%' })]),
+          h('span', { class: 'meter-label', text: T('views.readingOrder.progressLabel', {
+            completed: summary.completed, total: summary.total }) })
+        ]),
+        UI.segmented(UI.get('views.readingOrder.modes', []), mode, function (id) {
+          P.pref('readingOrderView', id); render();
+        }, T('views.readingOrder.modesAriaLabel'))
+      ]),
+      A.readingOrder.goal ? h('p', { class: 'dag-goal' }, [
+        h('strong', { text: T('views.readingOrder.goalLabel') }), mark(A.readingOrder.goal)]) : null,
+      next ? nextAction(next.title, '#/reading-order/' + next.id, T('views.readingOrder.nextUpLead') + ' — ' + next.path) : null,
+      mode === 'graph' ? readingGraph(selectedId) : readingList(selectedId),
+      h('h3', { class: 'card__subhead', text: T('views.readingOrder.detailHeading') }),
+      readingDetail(selected)
+    ]);
+    return out;
+  }
+
   function notFound() { return UI.empty('views.notFound'); }
 
   /* ------------------------------------------------------------ routing -- */
@@ -1552,6 +1863,7 @@
   var ROUTES = {
     'tour': viewTour,
     'architecture': function (r) { return viewArchitecture(r.segs[1]); },
+    'reading-order': function (r) { return viewReadingOrder(r.segs[1]); },
     'workflows': function (r) { return r.segs[1] ? viewSimulator(r.segs[1], Number(r.segs[2] || 0)) : viewWorkflows(); },
     'explorer': function (r) { return viewExplorer(r.segs[1]); },
     'data': viewData,
@@ -1575,7 +1887,11 @@
   var LINK_KINDS = {
     components: function (id) { return '#/architecture/' + id; },
     workflows: function (id) { return '#/workflows/' + id; },
-    steps: function (id, rec) { return '#/workflows/' + (rec.parent ? rec.parent.id : '') + '/0'; },
+    steps: function (id, rec) {
+      var workflow = rec.parent;
+      var index = workflow && workflow.steps ? workflow.steps.findIndex(function (step) { return step.id === id; }) : -1;
+      return '#/workflows/' + (rec.parent ? rec.parent.id : '') + '/' + Math.max(0, index);
+    },
     entities: function () { return '#/data'; },
     channels: function () { return '#/communication'; },
     connections: function () { return '#/communication'; },
@@ -1589,6 +1905,7 @@
   };
   LINK_KINDS.areas = function (id) { return '#/explorer/' + id; };
   LINK_KINDS.files = function (id) { return '#/explorer/' + id; };
+  LINK_KINDS.readingOrder = function (id) { return '#/reading-order/' + id; };
 
   function linkFor(id) {
     var rec = byId[id];

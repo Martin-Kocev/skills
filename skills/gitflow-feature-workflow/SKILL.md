@@ -1,105 +1,110 @@
 ---
 name: gitflow-feature-workflow
-description: Use when making code or versioning changes in a repository that uses master and develop branches, including features, non-urgent bug fixes, production hotfixes, releases, or semver bumps.
+description: Use when making code or versioning changes in a git repository that uses Gitflow with main and dev branches (or legacy master/develop), including features, non-urgent bug fixes, production hotfixes, releases, or semver bumps. Pulls first, plans, branches before editing, works test-first, announces each branch on start and pushes on finish, merges with --no-ff after verification, and keeps an Obsidian-friendly LLM wiki of the project up to date.
 ---
 
 # Gitflow Feature Workflow
 
-Use strict Gitflow for the complete lifecycle of repository changes. Protect `master`, integrate through `develop`, verify before merging, and leave the repository and remote in a clear final state.
+Strict Gitflow for every repository change: protect `main`, integrate through `dev`, verify before merging, and leave the local repo and remote in a stated final state.
 
-## Execution contract
+## Branch model
 
-1. Read `AGENTS.md` and inspect Git state before changing files.
-2. Select and read the exact playbook below.
-3. Post a checklist for that playbook and execute it in order.
-4. Mark a step N/A only when an observable predicate proves it absent, such as no remote, no CI config, no formatter, or no testable behavior.
-5. Finish only after every applicable check passes and all authorized remote work is pushed. When work remains local or awaits review, state exactly what remains and why.
+| Branch | Role | From | Merges into | Playbook |
+|---|---|---|---|---|
+| `main` | Production; every merge tagged | — | — | — |
+| `dev` | Integration | — | — | — |
+| `feature/<short-name>` | Feature or non-urgent fix | `dev` | `dev` | `references/feature.md` |
+| `hotfix/<version>` | Urgent production fix | `main` | `main` and `dev` (or the open `release/*`) | `references/hotfix.md` |
+| `release/<version>` | Release stabilization | `dev` | `main` and `dev` | `references/release.md` |
 
-| Change | Branch | Required playbook |
-|---|---|---|
-| Feature or non-urgent bug fix | `feature/<short-name>` from `develop` | `references/feature.md` |
-| Urgent production hotfix | `hotfix/<version>` from `master` | `references/hotfix.md` |
-| Release stabilization | `release/<version>` from `develop` | `references/release.md` |
+Read the selected playbook completely before branching. Feature names are short kebab-case (under 50 characters); hotfix and release names are the target version.
 
-Read the selected reference completely before branching.
+**Legacy branch names.** If the repo has `master`/`develop` instead of `main`/`dev`, ask once whether to keep them for this repo or rename them. Renaming moves the remote default branch and retargets open PRs, so never do it unasked. Record the answer under Project conventions in `AGENTS.md` and substitute the repo's names in every command. If no integration branch exists, ask before creating and pushing `dev`.
 
-## Load project context
+## Workflow
 
-`AGENTS.md` in the repository root is the project instruction and deep-reference file. Read it first or confirm that the harness already loaded it. Use its file reference, verified commands, architecture notes, and gotchas instead of rediscovering recorded context.
+1. **Orient.** Pull first. Read `AGENTS.md` unless already loaded, then query the project wiki (below): `docs/wiki/index.md` first, then only the pages this task needs. Use recorded commands, pages, and gotchas instead of rediscovering them. If `AGENTS.md` or the wiki is missing or out of shape, offer to create it with one scan (`references/agents-md-template.md`, `references/wiki.md`).
+2. **Plan** per `references/plan.md`: investigate, ask every open question in one round, name fitting skills, write `.gitflow/plan.md`, then continue straight into implementation.
+3. **Branch and announce** per the playbook before touching any file.
+4. **Build test-first** through the plan's steps, posting the playbook's steps as a checklist and ticking them off.
+5. **Verify, document, sync, merge, push** per the playbook.
+6. **Report** what landed, test and lint results, docs and wiki updates, CI state, and exactly what was pushed or left local.
 
-If `AGENTS.md` is missing or lacks the sections in `references/agents-md-template.md`, offer to generate or extend it by scanning the project once. If existing entries are stale, correct them in the task branch and report the discrepancy.
+Mark a step N/A only when an observable predicate proves it absent (no remote, no CI config, no formatter, no testable behavior), and say which.
 
-## Branching model
+## Project wiki
 
-| Branch | Role | Created from | Merges into |
-|---|---|---|---|
-| `master` | Production code | — | — |
-| `develop` | Integration | — | — |
-| `feature/<short-name>` | Features and non-urgent fixes | `develop` | `develop` |
-| `hotfix/<version>` | Urgent production fixes | `master` | `master` and `develop` |
-| `release/<version>` | Release stabilization | `develop` | `master` and `develop` |
+`docs/wiki/` is an LLM-maintained Obsidian vault in Karpathy's LLM Wiki pattern: `[[wikilinked]]` pages, a catalog (`index.md`), and an append-only `log.md`. The location can be overridden in `AGENTS.md`. Read `references/wiki.md` before writing to it.
 
-Rules:
+- **Query** when orienting: `index.md`, the recent log, then only the relevant pages. When a page contradicts the code, the code wins; fix the page on the task branch.
+- **Ingest** before merging every branch: update the pages for touched modules, add feature, decision, and gotcha pages that earned one, update `index.md`, and append a `log.md` entry. Commit as `docs(wiki): ...` on the same branch, so knowledge merges with the code it describes.
+- **Lint** on every release branch or when asked: run `python <this skill>/scripts/wiki_lint.py docs/wiki`, fix what it reports, then read for contradictions it cannot see.
 
-- **Never commit directly to `master` or `develop`.**
-- **Branch before touching any file.** If changes were made on a long-lived branch, stop, create the correct branch with the changes intact, then verify `git status`.
-- Before creating any branch, run `git branch --show-current` and `git status`, update the base branch, and pull the latest base branch.
-- All merges into `develop` and `master` use `--no-ff`.
-- Every merge into `master` gets an annotated semver tag.
-- Use short kebab-case feature names and version numbers for hotfix/release names.
+## Ask before you build
+
+Ask whenever the answer changes the plan (what to look for: `references/plan.md`). When a better implementation exists, give the alternative, why, its cost, and your recommendation, then follow the user's decision. Batch questions; never re-confirm explicit requirements.
+
+Ask only when it changes the result mid-workflow: Gitflow initialization or renaming, pre-existing uncommitted changes (stash, commit, or abort), destructive actions, conflicting edits where both sides look intentional, local merge versus pull request mode.
+
+## Test-driven development
+
+TDD is the default for every feature, fix, hotfix, and release fix.
+
+- Write the failing test first, run it, and see it fail for the right reason. A test that never failed proves nothing.
+- Work in small red → green → refactor cycles, covering edge cases and error paths, not only the happy path.
+- Every feature gets tests. Every bug fix gets a regression test that fails without the fix.
+- Commit each test with the code that makes it pass.
+- Skip TDD only where no test can observe the change (formatting, docs, config without behavior); say which and why. A slow suite is not a reason.
+
+## Commits and hygiene
+
+- Small Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`). Do not add a co-authorship trailer or AI attribution.
+- Before each commit, check `git status` and the staged diff for secrets, `.env` files, credentials, large binaries, build artifacts, and editor/OS junk; gitignore local-only files. If a secret is already committed, stop before pushing and tell the user to rotate it.
 - Split unrelated changes into separate branches.
 
-If only `master` or `main` exists and `develop` is absent, ask before initializing Gitflow and pushing the new `develop` branch.
+## Verification and docs
+
+- Run the focused test, the full test suite, and configured lint/format checks with the commands in `AGENTS.md`. Run them bare and read the real exit code; piping through `tail`, `head`, or `grep` hides failures. Never merge red. Report pre-existing unrelated failures and ask how to proceed.
+- Update `README.md` when public behavior, setup, commands, or architecture change.
+- Update `AGENTS.md` when verified commands or conventions change. File maps, architecture, decisions, and gotchas go in the wiki.
+- Add code changes to `CHANGELOG.md` under `## [Unreleased]` (format in `references/release.md`).
 
 ## Semver
 
-- Feature → **minor**
-- Hotfix / bug fix → **patch**
-- Breaking change → **major**
+Feature → minor · Hotfix / bug fix → patch · Breaking change → major. Read the current version from the latest tag on `main` (`git describe --tags --abbrev=0 main`) or the version file named in `AGENTS.md`. Call out breaking changes during planning.
 
-Read the current version from the latest `master` tag or the version file recorded in `AGENTS.md`. Call out breaking changes during planning.
+## Team sync: announce on start, push on finish
 
-## Interaction, remotes, and CI
+- **Pull first.** Before planning or editing, `git fetch --prune` and `git pull --ff-only` the current branch; pull the base again before branching or merging.
+- **Announce on start.** Right after branching, push an empty `chore: start <branch>` commit stating the plan's goal, scope, exclusions, and semver impact, so teammates know who is changing what (`references/feature.md`). In pull request mode, also open a draft PR.
+- **Commit locally while building.** If the scope changes materially, push an empty `chore: update scope` commit saying how.
+- **Push on finish.** After verification and the base sync, push the branch, then merge per the playbook. If a teammate's push blocks it, `git pull --no-rebase`, rerun the suite, push.
+- **Pausing unfinished work:** report local-only commits and offer to push them.
 
-Use local merge mode by default. Ask only when a requirement or choice materially changes the result: ambiguous behavior, unrelated-work boundaries, Gitflow initialization, pre-existing uncommitted changes, destructive actions, intentionally conflicting edits, or an explicit choice between local merge and pull request mode.
+## Merging, remotes, and CI
 
-- **No remote configured:** complete the workflow locally and state that nothing was pushed.
-- **Pull request mode requested:** push the task branch, open a PR against the correct target, verify CI, report the link, and stop for review.
-- **Protected target branch:** if direct push is rejected, switch to pull request mode; never bypass protection.
-- **CI configured:** check the remote pipeline after pushing. Never merge into `develop` or `master` while the pipeline is red.
-- **No CI configured:** mark the CI check N/A and continue after local verification.
-- **Uncommitted changes before switching:** ask whether to stash, commit, or abort.
-
-## Shared implementation rules
-
-- Plan the change before editing. Ask about unresolved requirements; do not ask for confirmation of already explicit requirements.
-- Use small Conventional Commits. Do not add a co-authorship trailer or AI attribution.
-- Before every commit, inspect `git status` and the staged diff for secrets, credentials, large binaries, build artifacts, and editor/OS junk. If a secret is already committed, stop before pushing and tell the user to rotate it.
-- Every feature gets tests. Every bug fix gets a regression test that fails without the fix.
-- Run the full test suite plus configured lint/format checks. Never merge red.
-- Update `README.md` when public behavior, setup, commands, or architecture changes.
-- Update `AGENTS.md` for task-touched files, architecture/dependencies, verified reusable commands, and real gotchas. Do not invent a gotcha when none occurred.
-- Update `CHANGELOG.md` under `## [Unreleased]` for code changes, using `references/release.md`.
-
-## Definition of done
-
-- [ ] Correct playbook and ordered checklist used
-- [ ] Correct branch created before changes
-- [ ] Code complete with no unintended TODOs or dead code
-- [ ] Feature/regression tests added as required
-- [ ] Full suite and configured lint/format checks pass
-- [ ] `README.md`, `AGENTS.md`, and `CHANGELOG.md` updated when their observable predicates apply
-- [ ] Conventional Commits used; no secrets, binaries, junk, or AI co-author trailers
-- [ ] Feature branch synced with latest `develop` before the final merge; hotfix/release branches synced with their required bases
-- [ ] Correct targets used: feature→develop; hotfix/release→master and develop
-- [ ] `--no-ff` used; master merges tagged
-- [ ] CI green when configured
-- [ ] Authorized pushes verified, or local/review-only state reported precisely
+- Update a long-lived branch only with `git pull --ff-only`. If it refuses, the local branch has diverged: stop and report instead of merging or rebasing it.
+- All merges into `dev` and `main` use `--no-ff`. Every merge into `main` gets an annotated semver tag `v<version>`.
+- Use local merge mode by default. Switch to pull request mode when the user asks or a protected target branch rejects a push: push the branch, open its PR against the target (or mark the draft ready with `gh pr ready`), check CI, report the link, and stop for review. Never bypass protection.
+- No remote configured: complete the workflow locally and say nothing was pushed.
+- CI configured: check the pipeline after pushing. Never merge into `dev` or `main` while the pipeline is red. No CI: mark it N/A.
+- A rejected push is not completion: resolve the divergence or switch to pull request mode.
 
 ## Guardrails
 
-- Never force-push shared branches.
-- Never rebase `master` or `develop`.
-- Destructive operations: confirm with the user first and explain what will be lost.
-- When any git command fails mid-workflow, including a merge conflict or push rejection, stop and resolve it deliberately before continuing.
-- Resolve a merge conflict when intent is obvious, but show the resolution before pushing. Ask when both sides look intentional.
+- Never commit directly to `main` or `dev`. Branch before touching any file. If changes landed on a long-lived branch, carry them to the right branch intact (`git switch -c <branch>` keeps uncommitted work) and verify `git status`.
+- Never force-push shared branches. Never rebase `main` or `dev`.
+- Destructive operations: confirm with the user first and say what will be lost.
+- When a git command fails (merge conflict, rejected push), stop and resolve it deliberately. Resolve conflicts whose intent is obvious, show the resolution, and rerun the full suite; ask when both sides look intentional.
+
+## Definition of done
+
+- [ ] Pulled first; branch announced on start and pushed on finish
+- [ ] Plan written, questions resolved
+- [ ] Correct branch from the correct base, created before any edit
+- [ ] Tests written first and seen failing; full suite and lint/format green
+- [ ] `README.md`, `AGENTS.md`, `CHANGELOG.md` updated where their predicates apply
+- [ ] Wiki ingested for this branch; `index.md` and `log.md` updated; lint clean on releases
+- [ ] Small Conventional Commits; no secrets, junk, or AI trailers
+- [ ] Synced with base before merging; correct targets; `--no-ff`; `main` merges tagged
+- [ ] CI green when configured; pushes verified, or local/review-only state stated exactly

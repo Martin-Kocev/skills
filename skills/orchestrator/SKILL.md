@@ -1,163 +1,136 @@
 ---
 name: orchestrator
-description: Use when a task spans 2+ separable workstreams or domains, needs multiple specialized subagents, or mixes implementation with independent verification. Also use when the user asks to coordinate, delegate, parallelize, or verify agent work, and when prior agent output must be checked against real evidence (diffs, tests, logs) before completion.
+description: Slash-invoked only (/orchestrator or $orchestrator). Coordinates a multi-part task across subagents, including cross-provider Claude and Codex workers, under a user-chosen model and concurrency cap; steps in directly for simple fixes or stalled slices; verifies the integrated result against direct evidence.
+disable-model-invocation: true
 ---
 
 # Orchestrator
 
-Coordinate specialized subagents to deliver a goal, then switch roles and independently verify their output against the original objective and direct evidence. Two hats, never at once: **chief orchestrator** during execution, **skeptical checker** after. Orchestration is disciplined handoffs between skills and fresh-context subagents — not a black-box manager.
+Run only when the user invokes it explicitly (`/orchestrator` in Claude Code, `$orchestrator` in Codex). Never self-activate because a task looks big or subagents are available.
 
-## When to use
+You plan, dispatch, integrate, and verify. Subagents do the production work (implementation, review, search, test runs): each gets a fresh context, and yours stays free for coordination and judgment. Do work yourself only when briefing costs more than doing, or when workers fail to land a slice. Coordinate while work is in flight; be a skeptic when it returns.
 
-- 2+ separable workstreams (e.g., backend + frontend + docs)
-- Work benefits from fresh-context subagents (large scans, isolated implementations)
-- The task has a verifiable end state and intermediate milestones
-- Prior agent output needs independent verification before acceptance
+## 1. Setup
 
-## Do not use when
+Settle two settings before planning. Take them from the invocation or conversation if already given (e.g. `/orchestrator model=sonnet max=3 <task>`). Ask only for missing ones, in one round with the Clarify questions (AskUserQuestion in Claude Code, a plain question in Codex). Dispatch nothing until both are known.
 
-- Single small or tightly coupled task → do it directly, no dispatch overhead
-- Pure Q&A, brainstorming, or exploration with no deliverable
-- One more-specific process skill governs the whole task (one bug → systematic-debugging; one feature in a Gitflow repo → gitflow-feature-workflow) — hand off to it
-- No verification surface exists (nothing testable, diffable, or observable)
+- **Subagent model.** Offer: **Auto (Recommended)**, where you pick per slice from the tier table and may use the other provider for reviews; a native mid-tier model; a native top-tier model; the other provider (Codex when running in Claude, Claude when running in Codex). Free text covers specific models or mixes ("Codex builds, Claude reviews"). A named model or mix is binding: ask before exceeding it.
+- **Max concurrent subagents.** Offer 2, **3 (Recommended)**, 5. Counts every running worker, reviewer, searcher, and cross-provider process. 1 means sequential. Every return needs review, so a cap above what you can verify only adds cost.
 
-## Operating procedure
+Record both on the task board. Apply mid-run changes from the next dispatch.
 
-1. **Clarify.** Restate objective, measurable success criteria, hard constraints, assumptions, and what evidence counts as proof. Ask user-only questions now — never mid-flight.
-2. **Map skills.** If an installed skill plausibly applies to a slice, name it in the plan and require the worker to invoke it. Skills encode both when to trigger and how to behave — don't re-derive their content. Review/audit skills that match the changed surface (design guidelines, framework best-practices, security review) are **verification slices**, not scope-creep: dispatch each as its own cheap worker. "Applied the guidelines inline" does not satisfy a review pass — if one is skipped, name the skip and the reason in the report so the user can call for it.
-3. **Plan.** Decompose into slices: scope, dependencies, expected output, verification method, assigned skill(s), model. Stop planning the moment slices are dispatchable.
-4. **Dispatch** per the policy below — independent slices in parallel, dependent ones sequential.
-5. **Stay active while workers run.** Track the task board, prepare integration, resolve conflicts between returns, re-dispatch early on missing context rather than waiting for a bad return.
-6. **Verify** each return per the reviewer policy. A summary is never proof.
-7. **Integrate, then re-verify the whole** against the *original objective* — not the plan; plans drift.
-8. **Report** in the Return Format.
+## 2. Procedure
 
-## Subagent dispatch policy
+1. **Clarify.** Objective, measurable success criteria, constraints, what counts as proof. Ask all user-only questions now; subagents cannot ask the user anything.
+2. **Fit check.** If the task is one small or tightly coupled change, or one process skill governs it end to end, say so in one line and use the lightest shape (one worker plus a review) unless the user redirects.
+3. **Map skills.** Name the installed skill each slice must invoke. Review/audit skills matching the changed surface (security, framework, design guidelines) are verification slices, not scope creep: dispatch them cheaply, or report the skip and why.
+4. **Plan.** Per slice: scope, dependencies, expected output, verification, skills, model/provider, owner. Stop once slices are dispatchable.
+5. **Dispatch** within the cap (section 4).
+6. **While workers run,** don't sleep or poll; completions notify you. Review landed returns, prepare integration, make simple fixes, and steer a worker early when you spot missing context.
+7. **Verify** every return (section 5).
+8. **Integrate, then re-verify the whole** against the original objective, not the plan.
+9. **Report** (section 8).
 
-- **Bias to dispatch.** If a slice can be specified with the Worker Prompt Template, delegate it. The orchestrator executes work inline only for trivial glue and the mechanical-fix carve-out in Failure handling — orchestrator context is for coordination and verification, not production. "Faster to do it myself" is a red flag, not a reason.
-- Fresh context per worker; only what the slice needs, never the whole conversation.
-- Every assignment uses the Worker Prompt Template. No freehand dispatches.
-- Exclusive scopes: parallel workers must not touch the same files or shared state — serialize or re-slice if they would.
-- Name the skills the worker must invoke and the evidence it must return.
-- Prefer specialized agent types (search, planning) over general-purpose when they fit.
+## 3. Ownership
 
-### Model & effort selection
-
-Pick the cheapest model that can complete the slice reliably — the review gate catches shortfalls, so default down and escalate on evidence, not anxiety.
-
-| Model | Use for |
+| Work | Owner |
 |---|---|
-| **Haiku-class** (small, ~1/15 the cost of top) | Mechanical, fully specified work: search sweeps, file inventories, renames, format fixes, boilerplate or exact-instruction edits, data extraction, mechanical verification (grep checks, run-a-command-and-report-output) |
-| **Sonnet-class** (mid) — **default** | Standard engineering: implementing features from a clear spec, writing tests and docs, module-scoped refactors, routine code review, debugging with a clear repro, pattern-following work with some judgment |
-| **Opus-class** (top) | Judgment under ambiguity: architecture and design decisions, cross-cutting changes, debugging with unclear cause, arbitrating contradictory worker results, high-risk or security-sensitive verification, open-ended investigation |
+| Implementing a slice (feature, refactor, tests, docs) | Worker |
+| Code review, audit skills, second opinions | Reviewer |
+| Broad search, inventories, large reads | Search/explore worker |
+| Running a suite and reporting | Cheap worker, or you if it is one command |
+| Glue: wiring returns together, a merge conflict, one config line | You |
+| Simple fix: one file, a few lines, cause and change both clear, no design decision | You, when faster than writing the brief |
+| A slice rejected twice | You take over, re-slice, or escalate (section 6) |
 
-- Never dispatch a top-tier model for work whose output is fully specified — specification quality substitutes for model strength.
-- Reviewer runs at the builder's tier or lower (checking explicit criteria is cheaper than producing); escalate the reviewer one tier only for the high-risk cases in Decision rules.
-- A slice rejected twice at one tier escalates the model on the next dispatch — never a third same-tier retry.
-- Effort is also an instruction: tell small-model workers exactly what to do; reserve open-ended briefs ("investigate", "design") for top-tier dispatches.
+Your own work is checked like anyone's: a simple fix (takeovers included) needs the slice's checks re-run with real exit codes; anything larger goes to a reviewer. Log each inline change and its reason in the report.
 
-### Worker Prompt Template
+## 4. Dispatch
+
+- Fresh context per worker: only what the slice needs. Every brief uses the Worker template.
+- Running workers need exclusive scopes (files, shared state). Otherwise serialize, re-slice, or use worktrees.
+- Queue work beyond the cap in dependency order, critical path first; batch small related slices into one brief when the cap is tight.
+- Workers don't spawn their own subagents unless the brief allows it; any they spawn count toward the cap.
+- Prefer specialized agent types (explore, plan, review) when they fit. Set the model through the dispatch tool's model parameter.
+- Background workers can't answer permission prompts, so a denied edit can come back reported as done. Trust the diff, not the summary.
+- **Cross-provider workers** (Codex from Claude, Claude from Codex): read [references/cross-provider.md](references/cross-provider.md) before the first one.
+
+### Model tiers (Auto only)
+
+Use the cheapest tier that can do the slice reliably. The review gate catches misses, so escalate on evidence. Pick by tier, not by name: model names below are current examples, so map them to whatever the harness's model list offers at each tier.
+
+| Tier | Claude | Codex | Use for |
+|---|---|---|---|
+| Small | fastest, cheapest model (e.g. haiku) | small model or low effort | Fully specified mechanical work: sweeps, inventories, renames, boilerplate, exact edits, run-and-report checks |
+| Mid (default) | balanced model (e.g. sonnet) | default model, medium effort | Features from a clear spec, tests, docs, module refactors, routine review, debugging with a repro |
+| Top | strongest model (e.g. opus) | strongest model, high effort | Architecture, cross-cutting changes, unclear-cause bugs, arbitrating contradictions, high-risk review |
+
+- A precise brief substitutes for model strength; never put the top tier on fully specified work.
+- Reviewers run at the builder's tier or lower. For high-risk, security-sensitive, or contradictory results, go one tier up or use the other provider, whose blind spots differ.
+
+### Worker template
 
 ```text
-GOAL: <one sentence — the outcome, not the activity>
-SCOPE: <exact files/dirs/functions in play; everything else is out of bounds>
-CONTEXT: <only the facts this slice needs; decisions already made upstream>
-CONSTRAINTS: <what NOT to change; required skills/conventions; no extra
-  features, refactors, or abstractions beyond this task>
-EVIDENCE REQUIRED: <commands to run and outputs to capture: tests, diffs, logs.
-  Run commands bare or redirect to a file — never pipe through tail/head/grep
-  (masks exit codes). Report each command's real exit code.>
-RETURN FORMAT:
-- Findings
-- Changes made (files + what changed)
-- Risks
-- Unresolved issues
-- Proof (verbatim command output — not paraphrase)
+GOAL: <one sentence: the outcome, not the activity>
+SCOPE: <exact files/dirs/functions; everything else is out of bounds>
+CONTEXT: <only the facts this slice needs; upstream decisions>
+CONSTRAINTS: <what not to change; skills to invoke; no extra features,
+  refactors, or abstractions; no subagents>
+IF BLOCKED: stop and report the blocker; do not guess or widen scope.
+EVIDENCE: <commands to run; per the evidence standard (no filtering
+  pipes, real exit codes)>
+RETURN: changes (files + what), proof (verbatim output + exit codes),
+  risks and unresolved issues
 ```
 
-## Reviewer / checker policy
+## 5. Review
 
-After every meaningful milestone and before final completion, switch to verifier mindset: the worker is wrong until evidence shows otherwise.
+The worker is wrong until evidence shows otherwise.
 
-- Re-read the **original** objective and success criteria, not the worker's restatement.
-- Evidence must be from *this run* — fresh outputs matching current file state. Stale or absent evidence = unverified.
-- Inspect artifacts directly: open the changed files, rerun key tests when cheap, read the logs.
-- Classify every claim: **implemented** (the code/artifact exists), **claimed** (worker asserts it), **verified** (you saw the evidence). Only *verified* counts toward completion.
-- Hunt for: omissions vs. success criteria, scope drift, broken assumptions, side effects outside scope, unverified claims, and test/build evidence produced through filtered pipelines (the exit code shown is the filter's, not the run's — see Evidence standard).
-
-### Review Prompt Template
+- Implementation slices get an independent reviewer (template below). Mechanical slices you verify yourself: read the diff, re-run the check.
+- You own the verdict: read the review, spot-check key evidence (open changed files, rerun cheap tests), and settle worker/reviewer disagreements; escalate ones the evidence can't settle.
+- Judge against the original success criteria, not the worker's restatement. Only evidence from this run that matches current files counts.
+- Classify claims as implemented, claimed, or verified. Only verified counts.
+- Look for omissions, scope drift, broken assumptions, side effects outside scope, and filtered evidence.
 
 ```text
 OBJECTIVE + SUCCESS CRITERIA: <original, verbatim>
-WORKER RETURN: <the worker's full output>
-CHECK:
-1. Each success criterion → met / unmet, with evidence pointer
-2. Each claim → implemented / claimed / verified
-3. Omissions, scope drift, broken assumptions, contradicted evidence
-VERDICT: accept | revise (same slice, listed fixes) | redo (new worker,
-  tighter scope) — with reasons and concrete next actions
+SCOPE UNDER REVIEW: <files/diff the worker was allowed to change>
+WORKER RETURN: <full output>
+CHECK: each criterion met/unmet with evidence; each claim
+  implemented/claimed/verified; omissions, drift, contradictions;
+  re-run <key command> and quote output + exit code
+VERDICT: accept | revise (listed fixes) | redo (tighter scope), with reasons
 ```
 
-## Decision rules
+## 6. Failure handling
 
-| Situation | Rule |
-|---|---|
-| Small or tightly coupled task | One worker — or do it inline |
-| 2+ independent domains | Multiple workers |
-| Shared state or ordering dependency | Sequential delegation |
-| Independent and merge-safe | Parallel dispatch |
-| Milestone reached / before completion | Reviewer mode — always |
-| High-risk, high-impact, or contradictory results | Second-pass review or a stronger verifier agent |
-| A review/audit skill matches the changed surface | Dispatch it as a verification slice (cheap model); skipping it is a report line, never a silent call |
-| Tempted to do slice work inline | Delegate — inline is only trivial glue or the mechanical-fix carve-out |
+- Missing, stale, or contradicted evidence → revise or redo with the gap named and a tighter brief. A simple in-scope gap you fix yourself and log as a revision.
+- A worker that stalls, loops, or returns off-scope work counts as a rejection.
+- **Second rejection of a slice → no third try at the same scope and model.** Diagnose, then pick one:
+  1. **Take over** when the failed attempts have made the remaining work clear. This is often cheapest. Check it per section 3.
+  2. **Re-slice** when the slice was too big or badly bounded.
+  3. **Escalate** one tier or switch provider. If the user fixed the model, ask first.
+- New information → replan only affected slices; keep verified work.
+- A worker needs user-only input → ask now; keep other slices running.
+- Destructive actions (deletes, force-push, prod changes) → confirm with the user first.
 
-## Rationalizations to reject
+## 7. Evidence standard
 
-Heard from real runs — each one preceded a miss:
+Verified means seen in this run: tool output, full test/build output with exit codes, diffs, logs, deliverables. Summaries, confidence, and "should work" are claims.
 
-| Excuse | Reality |
-|---|---|
-| "Output is long — pipe the tests through tail/head" | The pipe's exit code replaces the test's; a red run reads green. Redirect to a file instead. This exact move merged a failing test once. |
-| "A separate review pass is scope-creep" | Reviewing code you already changed is verification of existing scope, not new scope. Dispatch it cheap or surface the skip. |
-| "I applied the best practices inline, no audit needed" | The author checking their own work is the failure mode this skill exists to prevent. Inline application ≠ independent pass. |
-| "Faster to do it myself than dispatch" | Inline work burns orchestrator context and bypasses the review gate. If it fits the template, delegate it. |
+Never pipe a test/build/lint run through `tail`, `head`, `grep`, `Select-Object`, or another filter: the pipeline reports the filter's exit code, so a red run reads green (this once merged a failing test). Run it bare or redirect to a file, and quote the real exit code (`$?` / `$LASTEXITCODE`). Reject filtered evidence and re-run.
 
-## Evidence standard
+Excuses that preceded real misses: "a review pass is scope creep" (it verifies existing scope); "I applied the guidelines inline" (the author checking themself is the failure this skill prevents); "faster to do the whole slice myself" (only glue, simple fixes, and takeovers qualify); "one more try will work" (two misses mean the slice, brief, or model is wrong).
 
-A claim is verified only against direct artifacts from this run: tool outputs · test runs (full output + exit codes) · diffs or changed files · logs · produced deliverables · measurable acceptance criteria. Worker summaries, confidence statements, and "should work" never count.
+## 8. Report
 
-**Exit codes must be the command's own.** Never pipe a test/build/lint run through `tail`, `head`, `grep`, `Select-Object`, or any filter — the pipeline reports the *filter's* exit code, so a red run reads green (this once merged a failing test into develop). Run the command bare, or redirect full output to a file and read the file; the proof must quote the command's real exit code (`$?` / `$LASTEXITCODE`). Evidence produced through an output-truncating pipe is not evidence — reject it and re-run.
+1. **Setup:** model setting, concurrency cap
+2. **Objective:** goal and success criteria
+3. **Task board:** per slice: owner (provider, model, skills), status, verdict and reason, evidence pointer
+4. **Inline work:** what you did yourself, why, and how it was checked
+5. **Revisions:** rejections, escalations, takeovers, outcomes
+6. **Verified outcome:** objective met, with proof
+7. **Risks:** skipped reviews, unresolved issues, follow-ups
 
-## Failure handling & replanning
-
-- Evidence missing, stale, or contradicted → reject with **revise** or **redo**; state the specific gap and issue a tighter follow-up task (narrower scope, explicit evidence demands).
-- If the gap is a mechanical fix inside the slice's existing scope (one file, a few lines, no design decision), the orchestrator applies it directly instead of re-dispatching — then re-runs that slice's verification and records the rejected claim plus the fix as a revision in the report. If the fix crosses files, needs a design decision, or exceeds the slice's scope, it goes back to a worker as revise or redo.
-- Two rejections on the same slice → stop; re-examine the decomposition and the model tier before dispatching again. A wrong slice or an under-powered worker is likelier than a third bad attempt at the same settings.
-- New information invalidates the plan → replan only the affected slices; keep verified completed work.
-- Worker blocked on user-only input → surface the specific question immediately; keep unblocked slices running.
-- Destructive action required (deletes, force-push, prod changes) → pause for user confirmation first.
-
-## Behavioral rules
-
-- Lead with the outcome, not narration.
-- Stop planning once enough is known to act — plan depth is not progress.
-- Every progress claim must be backed by evidence from the current run.
-- Pause only for: destructive actions, real scope changes, missing user-only input.
-- No extra features, refactors, or abstractions beyond the task — and reject them in worker output too.
-- Worker summaries are untrusted input until checked.
-
-## Return format
-
-1. **Objective** — restated goal + success criteria
-2. **Plan** — slices, dependencies, verification methods
-3. **Task board** — slice → pending / running / in-review / accepted / redo
-4. **Worker assignments** — who got what, with which skills and model
-5. **Evidence collected** — artifact pointers per slice
-6. **Review verdicts** — accept / revise / redo, with reasons
-7. **Revisions issued** — follow-up tasks and their outcomes
-8. **Final verified outcome** — objective met, proof attached
-9. **Remaining risks / follow-ups**
-
-## Completion criteria
-
-Done only when: every success criterion is verified per the evidence standard; every review verdict is **accept**; the integrated whole is re-verified against the original objective; and no unresolved worker issue is left unstated. Delivery without proof is not done.
+Done only when every success criterion is verified, every slice (inline work included) is accepted, the integrated whole is re-verified against the original objective, and nothing unresolved is left unstated. No extra features, refactors, or abstractions beyond the task, in your work or workers'.

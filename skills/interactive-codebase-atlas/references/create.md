@@ -83,8 +83,10 @@ Author in this order — each layer gives the next its vocabulary:
 10. `glossary` — terms the repository actually uses
 11. `knowledgeChecks` — optional, low-pressure
 12. `explorer` — island/module → area → file hierarchy over the real tree
-13. `learningPaths` — include conceptual `what-changed` paths with stable review IDs
-14. Quest presentation — assemble optional, non-punitive goals from existing learning-path and knowledge-check IDs; author no duplicate collection
+13. `readingOrder` — the DAG of files to read in order; author it after `explorer`, since its nodes
+    link into the files you have already selected as load-bearing
+14. `learningPaths` — include conceptual `what-changed` paths with stable review IDs
+15. Quest presentation — assemble optional, non-punitive goals from existing learning-path and knowledge-check IDs; author no duplicate collection
 
 Every item needs: stable `id`, `confidence`, `sources[]`, and the three depth levels. See `references/schema.md`.
 
